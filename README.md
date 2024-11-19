@@ -1,15 +1,15 @@
 # Openfort Ecosystem abstraction
 
 ## Overview
-Ecosystems serve as parent entities for groups of apps operating across different blockchains. Openfort [**ecosystem wallets**](https://www.openfort.xyz/docs/guides/ecosystem) enable seamless interoperability between applications, allowing ecosystems to design their ideal, unified wallet experience. The next evolution is consolidating user liquidity across apps, providing a single, unified dollar balance instantly spendable across the ecosystem. This vision is powered by Openfort's advanced chain abstraction implementation based on [MagicSpend++](https://ethresear.ch/t/magicspend-spend-now-debit-later/19678/9).
+Ecosystems serve as parent entities for groups of apps operating across different blockchains. Openfort [**ecosystem wallets**](https://www.openfort.xyz/docs/guides/ecosystem) enable seamless interoperability between applications, allowing ecosystems to design their ideal, unified wallet experience. The next evolution is consolidating user liquidity across apps, providing a single, unified dollar balance instantly spendable across the ecosystem. This vision will be powered by Openfort's advanced chain abstraction implementation based on [MagicSpend++](https://ethresear.ch/t/magicspend-spend-now-debit-later/19678/9) hosted in this repository.
 
-This repository will host *at least* the following contracts:
+You will find *at least* the following contracts:
 * time-locked Vault and related interfaces
 * CAB Paymaster and related interfaces
 
-Any additional contracts will be added to the repository as needed.
+Any additional contracts will be added to the repository as needed...
 
-## Ecosystem Chain Abstraction Settings: Accessible from Openfort Dashboard
+## Ecosystem Chain Abstraction Settings: accessible from Openfort Dashboard
 
 #### Vault
 - Locking period
