@@ -1,2 +1,3 @@
-@openzeppelin-5.1.0/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
-@solady-0.0.268/=lib/solady/src/
+@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
+@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/
+@solady/=lib/solady/src/
