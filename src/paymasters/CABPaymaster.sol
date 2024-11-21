@@ -41,16 +41,7 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         IInvoiceManager.InvoiceWithRepayTokens calldata invoice,
         bytes calldata proof
     ) external virtual override returns (bool ret) {
-        bytes32 invoiceHash = keccak256(
-            abi.encode(
-                invoice.account,
-                invoice.nonce,
-                invoice.paymaster,
-                invoice.sponsorChainId,
-                keccak256(abi.encode(invoice.repayTokenInfos))
-            )
-        );
-        bytes32 hash = MessageHashUtils.toEthSignedMessageHash(invoiceHash);
+        bytes32 hash = MessageHashUtils.toEthSignedMessageHash(getInvoiceHash(invoice));
         if (verifyingSigner == ECDSA.recover(hash, proof)) {
             ret = true;
         }
