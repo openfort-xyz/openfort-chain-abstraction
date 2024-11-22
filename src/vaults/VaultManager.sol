@@ -6,15 +6,18 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+
 import {IInvoiceManager} from "../interfaces/IInvoiceManager.sol";
 import {IVault} from "../interfaces/IVault.sol";
 import {IVaultManager} from "../interfaces/IVaultManager.sol";
 import {IYieldVault} from "../interfaces/IYieldVault.sol";
 
-contract VaultManager is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable, IVaultManager {
+
+contract VaultManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgradeable, IVaultManager {
     using SafeERC20 for IERC20;
 
-    IInvoiceManager public immutable invoiceManager;
+    IInvoiceManager public invoiceManager;
     uint256 public withdrawLockBlock;
 
     /// @notice Mapping: Vault => bool to indicate if the Vault is registered.
@@ -35,10 +38,11 @@ contract VaultManager is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
     /// @notice Mapping: bytes32 => Withdrawal to store the withdrawal request.
     mapping(bytes32 => Withdrawal) public withdrawals;
 
-    constructor(IInvoiceManager _invoiceManager) {
+    constructor() {
         _disableInitializers();
-        invoiceManager = _invoiceManager;
     }
+
+    function _authorizeUpgrade(address) internal override onlyOwner {}
 
     modifier onlyRegisteredVault(IVault vault) {
         require(registeredVaults[vault], "VaultManager: vault not registered");
@@ -50,7 +54,8 @@ contract VaultManager is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
         _;
     }
 
-    function initialize(address initialOwner, uint256 _withdrawLockBlock) public virtual initializer {
+    function initialize(address initialOwner, IInvoiceManager _invoiceManager, uint256 _withdrawLockBlock) public virtual initializer {
+        invoiceManager = _invoiceManager;
         withdrawLockBlock = _withdrawLockBlock;
         _transferOwnership(initialOwner);
         __ReentrancyGuard_init();

@@ -21,7 +21,7 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
     using UserOperationLib for PackedUserOperation;
 
     IInvoiceManager public immutable invoiceManager;
-
+ 
     address public immutable verifyingSigner;
 
     uint256 private constant VALID_TIMESTAMP_OFFSET = PAYMASTER_DATA_OFFSET;

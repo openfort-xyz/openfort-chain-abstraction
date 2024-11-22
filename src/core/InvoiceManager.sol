@@ -4,14 +4,15 @@ pragma solidity ^0.8.0;
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 import {IInvoiceManager} from "../interfaces/IInvoiceManager.sol";
 import {IPaymasterVerifier} from "../interfaces/IPaymasterVerifier.sol";
 import {IVault} from "../interfaces/IVault.sol";
 import {IVaultManager} from "../interfaces/IVaultManager.sol";
 
-contract InvoiceManager is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable, IInvoiceManager {
-    IVaultManager public immutable vaultManager;
+contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgradeable, IInvoiceManager {
+    IVaultManager public vaultManager;
 
     /// @notice Mapping: invoiceId => Invoice to store the invoice.
     mapping(bytes32 => Invoice) public invoices;
@@ -22,15 +23,20 @@ contract InvoiceManager is Initializable, OwnableUpgradeable, ReentrancyGuardUpg
     /// @notice Mapping: smart account => CABPaymaster to store the CAB paymaster.
     mapping(address => CABPaymaster) public cabPaymasters;
 
-    constructor(IVaultManager _vaultManager) {
+    constructor() {
         _disableInitializers();
-        vaultManager = _vaultManager;
     }
 
-    function initialize(address initialOwner) public virtual initializer {
+    function initialize(address initialOwner, IVaultManager _vaultManager) public virtual initializer {
         __Ownable_init(initialOwner);
         __ReentrancyGuard_init();
+
+        assembly {
+            sstore(vaultManager.slot, _vaultManager)
+        }
     }
+
+    function _authorizeUpgrade(address) internal override onlyOwner {}
 
     /// @inheritdoc IInvoiceManager
     function registerPaymaster(address paymaster, IPaymasterVerifier paymasterVerifier, uint256 expiry)

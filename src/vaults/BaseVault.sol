@@ -6,11 +6,12 @@ import {IVaultManager} from "../interfaces/IVaultManager.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 /**
  * @title Implementation of the IVault interface.
  */
-contract BaseVault is Initializable, IVault {
+contract BaseVault is UUPSUpgradeable, OwnableUpgradeable, IVault {
     using SafeERC20 for IERC20;
 
     /**
@@ -26,7 +27,7 @@ contract BaseVault is Initializable, IVault {
     uint256 internal constant BALANCE_OFFSET = 1e3;
 
     /// @notice The VaultManager contract.
-    IVaultManager public immutable vaultManager;
+    IVaultManager public vaultManager;
 
     /// @notice The underlying tokens of the Vault.
     IERC20 public underlyingToken;
@@ -39,14 +40,16 @@ contract BaseVault is Initializable, IVault {
         _;
     }
 
-    constructor(IVaultManager _vaultManager) {
-        vaultManager = _vaultManager;
+    constructor() {
         _disableInitializers();
     }
 
-    function initialize(IERC20 _underlyingToken) public virtual initializer {
+    function initialize(IVaultManager _vaultManager, IERC20 _underlyingToken) public virtual initializer {
+        vaultManager = _vaultManager;
         _initializeBase(_underlyingToken);
     }
+
+    function _authorizeUpgrade(address) internal override onlyOwner {}
 
     /// @inheritdoc IVault
     function deposit(IERC20 token, uint256 amount, bool isYield)
