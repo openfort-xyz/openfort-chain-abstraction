@@ -16,7 +16,7 @@ import {MockERC20} from "../src/mocks/MockERC20.sol";
 contract CABPaymasterTest is Test {
 
     uint256 immutable BASE_CHAIN_ID = 8453;
-    
+
     CABPaymaster public paymaster;
     InvoiceManager public invoiceManager;
     VaultManager public vaultManager;
@@ -94,11 +94,12 @@ contract CABPaymasterTest is Test {
             repayTokenInfos: repayTokenInfos
         });
 
-        // This Invoice hash doesn't map to any real invoice
-        // Paymaster didn't front any fund on any chain
-        // But still can sign any fake invoice and get repaid.
+        // This Invoice hash doesn't map to any legit invoice
+        // Paymaster didn't front any fund for rekt
+        // But still can sign this fake invoice and get repaid
+        // from rekt locked asset.
 
-        bytes32 maliciousInvoiceHash = keccak256(
+        bytes32 maliciousInvoiceHash = keccak256( 
             abi.encode(
                 maliciousInvoice.account,
                 maliciousInvoice.nonce,
