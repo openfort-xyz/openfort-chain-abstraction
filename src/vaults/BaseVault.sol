@@ -11,6 +11,7 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 /**
  * @title Implementation of the IVault interface.
  */
+
 contract BaseVault is UUPSUpgradeable, OwnableUpgradeable, IVault {
     using SafeERC20 for IERC20;
 

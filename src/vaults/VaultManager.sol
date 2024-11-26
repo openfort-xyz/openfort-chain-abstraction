@@ -13,7 +13,6 @@ import {IVault} from "../interfaces/IVault.sol";
 import {IVaultManager} from "../interfaces/IVaultManager.sol";
 import {IYieldVault} from "../interfaces/IYieldVault.sol";
 
-
 contract VaultManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgradeable, IVaultManager {
     using SafeERC20 for IERC20;
 
@@ -54,7 +53,11 @@ contract VaultManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardUpg
         _;
     }
 
-    function initialize(address initialOwner, IInvoiceManager _invoiceManager, uint256 _withdrawLockBlock) public virtual initializer {
+    function initialize(address initialOwner, IInvoiceManager _invoiceManager, uint256 _withdrawLockBlock)
+        public
+        virtual
+        initializer
+    {
         invoiceManager = _invoiceManager;
         withdrawLockBlock = _withdrawLockBlock;
         _transferOwnership(initialOwner);

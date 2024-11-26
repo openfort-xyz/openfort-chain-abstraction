@@ -1,0 +1,23 @@
+
+
+{
+  "name": "@openfort/openfort-chain-abtraction",
+  "version": "0.1.0",
+  "description": "Official Openfort Chain Abstraction Contracts",
+  "license": "GPL-3.0",
+  "scripts": {
+    "format": "forge fmt",
+    "test": "forge test --via-ir"
+  },
+  "devDependencies": {
+    "solhint": "^5.0.3"
+  },
+  "author": "Pierre HAY <hay.pierre.pro@gmail.com> (https://www.openfort.xyz/)",
+  "keywords": [
+    "solidity",
+    "chain-abstraction",
+    "web3",
+    "magicspend++",
+    "erc-4337"
+  ]
+}

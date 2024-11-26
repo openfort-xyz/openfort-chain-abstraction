@@ -66,7 +66,7 @@ interface IInvoiceManager {
         uint256 sponsorChainId;
     }
 
-     /// @notice Struct to represent the invoice.
+    /// @notice Struct to represent the invoice.
     struct InvoiceWithRepayTokens {
         address account;
         uint256 nonce;
@@ -136,10 +136,8 @@ interface IInvoiceManager {
      * @param repayTokenInfos The tokens to repay.
      * @return invoiceId The ID of the invoice.
      */
-    function getInvoiceId(
-        address account,
-        address paymaster,
-        uint256 nonce,
-        RepayTokenInfo[] calldata repayTokenInfos
-    ) external view returns (bytes32);
+    function getInvoiceId(address account, address paymaster, uint256 nonce, RepayTokenInfo[] calldata repayTokenInfos)
+        external
+        view
+        returns (bytes32);
 }

@@ -21,9 +21,11 @@ interface IPaymasterVerifier {
      * @param invoice The invoice to verify.
      * @param proof The proof of the invoice.
      */
-    function verifyInvoice(bytes32 invoiceId, IInvoiceManager.InvoiceWithRepayTokens calldata invoice, bytes calldata proof)
-        external
-        returns (bool);
+    function verifyInvoice(
+        bytes32 invoiceId,
+        IInvoiceManager.InvoiceWithRepayTokens calldata invoice,
+        bytes calldata proof
+    ) external returns (bool);
 
     /**
      * @notice Withdraw the token.
