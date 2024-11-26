@@ -14,7 +14,6 @@ import {UpgradeableOpenfortProxy} from "../src/UpgradeableOpenfortProxy.sol";
 import {MockERC20} from "../src/mocks/MockERC20.sol";
 
 contract CABPaymasterTest is Test {
-
     uint256 immutable BASE_CHAIN_ID = 8453;
 
     CABPaymaster public paymaster;
@@ -59,13 +58,12 @@ contract CABPaymasterTest is Test {
             )
         );
         invoiceManager.initialize(owner, IVaultManager(address(vaultManager)));
-        paymaster = new CABPaymaster(new EntryPoint(), invoiceManager, verifyingSignerAddress);
+        paymaster = new CABPaymaster(new EntryPoint(), invoiceManager, verifyingSignerAddress, owner);
         assertEq(address(invoiceManager.vaultManager()), address(vaultManager));
         assertEq(address(vaultManager.invoiceManager()), address(invoiceManager));
     }
 
     function testRektCanGetRekt() public {
-
         vm.prank(owner);
         vaultManager.addVault(openfortVault);
 
@@ -85,7 +83,8 @@ contract CABPaymasterTest is Test {
         assertEq(vaultManager.vaultShares(rekt, openfortVault), 10000);
 
         IInvoiceManager.RepayTokenInfo[] memory repayTokenInfos = new IInvoiceManager.RepayTokenInfo[](1);
-        repayTokenInfos[0] = IInvoiceManager.RepayTokenInfo({vault: openfortVault, amount: 10000, chainId: BASE_CHAIN_ID});
+        repayTokenInfos[0] =
+            IInvoiceManager.RepayTokenInfo({vault: openfortVault, amount: 10000, chainId: BASE_CHAIN_ID});
         IInvoiceManager.InvoiceWithRepayTokens memory maliciousInvoice = IInvoiceManager.InvoiceWithRepayTokens({
             account: rekt,
             nonce: 0,
@@ -98,8 +97,7 @@ contract CABPaymasterTest is Test {
         // Paymaster didn't front any fund for rekt
         // But still can sign this fake invoice and get repaid
         // from rekt locked asset.
-
-        bytes32 maliciousInvoiceHash = keccak256( 
+        bytes32 maliciousInvoiceHash = keccak256(
             abi.encode(
                 maliciousInvoice.account,
                 maliciousInvoice.nonce,

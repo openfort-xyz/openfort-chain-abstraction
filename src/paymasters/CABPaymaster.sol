@@ -21,15 +21,15 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
     using UserOperationLib for PackedUserOperation;
 
     IInvoiceManager public immutable invoiceManager;
- 
+
     address public immutable verifyingSigner;
 
     uint256 private constant VALID_TIMESTAMP_OFFSET = PAYMASTER_DATA_OFFSET;
 
     uint256 private constant SIGNATURE_OFFSET = VALID_TIMESTAMP_OFFSET + 64;
 
-    constructor(IEntryPoint _entryPoint, IInvoiceManager _invoiceManager, address _verifyingSigner)
-        BasePaymaster(_entryPoint, _verifyingSigner)
+    constructor(IEntryPoint _entryPoint, IInvoiceManager _invoiceManager, address _verifyingSigner, address _owner)
+        BasePaymaster(_entryPoint, _owner)
     {
         invoiceManager = _invoiceManager;
         verifyingSigner = _verifyingSigner;
@@ -40,14 +40,12 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         bytes32 invoiceId,
         IInvoiceManager.InvoiceWithRepayTokens calldata invoice,
         bytes calldata proof
-    ) external virtual override returns (bool ret) {
+    ) external virtual override returns (bool) {
         bytes32 hash = MessageHashUtils.toEthSignedMessageHash(getInvoiceHash(invoice));
-        if (verifyingSigner == ECDSA.recover(hash, proof)) {
-            ret = true;
-        }
+        return verifyingSigner == ECDSA.recover(hash, proof);
     }
 
-    function withdraw(address token, uint256 amount) external override {
+    function withdraw(address token, uint256 amount) external override onlyOwner {
         IERC20(token).safeTransfer(owner(), amount);
     }
 
@@ -142,6 +140,8 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
             SponsorToken memory sponsorToken = sponsorTokens[i];
             IERC20(sponsorToken.token).approve(sponsorToken.spender, 0);
         }
+
+        // TODO: write in settlement contract on `opSucceeded`
     }
 
     function parsePaymasterAndData(bytes calldata paymasterAndData)
