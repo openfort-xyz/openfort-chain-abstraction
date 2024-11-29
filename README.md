@@ -32,7 +32,8 @@ _Note:_ This "locking" can be simplified into a **SEND** transaction from an EOA
 	The Paymaster fronts the funds on the destination chain for the user if they _HAVE_ enough locked balance (checked by the Paymaster Service). The Paymaster contract will then be reimbursed on the source chain(s). Ni1o: user has 100@A, 50@B, and spends 130@C
 
 Trust Assumption:
-* User *MUST* trust owner of `verifyingSigner` address to call `repay` from `InvoiceManager` only after the Paymaster fronted the funds. 🚩 🚩 🚩 Possible solution => call `repay` from Paymaster `_postOp` on `opSucceeded` using [ChainLink CCIP](https://docs.chain.link/ccip) but it's Probably too expensive ....
+* ATM, user *MUST* trust owner of `verifyingSigner` address to call `repay` from `InvoiceManager` only after the Paymaster fronted the funds. 🚩 🚩 🚩 
+    Possible solution: write invoice on a setllement contract from Paymaster `_postOp` on `opSucceeded` and leverage socket DL to call the invoice manager on the source chain and get reimbursed.
 * Ecosystems *MUST* trust Openfort's Paymaster Service to verify user-locked balances and append its special signature to the `paymasterAndData` userOperation field.
 
 
