@@ -35,11 +35,13 @@ contract CABPaymasterTest is Test {
     uint256 public verifyingSignerPrivateKey;
     address public owner;
     address public rekt;
+    address public socket;
 
     function setUp() public {
         entryPoint = new EntryPoint();
         owner = address(1);
         rekt = address(0x9590Ed0C18190a310f4e93CAccc4CC17270bED40);
+        socket = address(0x07e11D1A1543B0D0b91684eb741d1ab7D51ae237);
 
         verifyingSignerPrivateKey = uint256(keccak256(abi.encodePacked("VERIFIYING_SIGNER")));
         verifyingSignerAddress = vm.addr(verifyingSignerPrivateKey);
@@ -68,9 +70,9 @@ contract CABPaymasterTest is Test {
             )
         );
         invoiceManager.initialize(owner, IVaultManager(address(vaultManager)));
-        settlement = UserOpSettlement(payable(new UpgradeableOpenfortProxy(address(new UserOpSettlement()), "")));
+        settlement = UserOpSettlement(payable(new UpgradeableOpenfortProxy(address(new UserOpSettlement(socket)), "")));
         paymaster = new CABPaymaster(entryPoint, invoiceManager, verifyingSignerAddress, owner, address(settlement));
-        settlement.initialize(owner, address(paymaster));
+        settlement.initialize(owner, address(paymaster), 1e3);
 
         mockERC20.mint(address(paymaster), PAYMSTER_BASE_MOCK_ERC20_BALANCE);
 
