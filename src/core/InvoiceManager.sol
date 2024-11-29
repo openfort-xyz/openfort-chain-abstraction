@@ -31,9 +31,7 @@ contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardU
         __Ownable_init(initialOwner);
         __ReentrancyGuard_init();
 
-        assembly {
-            sstore(vaultManager.slot, _vaultManager)
-        }
+        vaultManager = _vaultManager;
     }
 
     function _authorizeUpgrade(address) internal override onlyOwner {}

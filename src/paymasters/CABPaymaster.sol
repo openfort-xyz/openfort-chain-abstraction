@@ -12,6 +12,12 @@ import {IInvoiceManager} from "../interfaces/IInvoiceManager.sol";
 import {IVault} from "../interfaces/IVault.sol";
 import {IPaymasterVerifier} from "../interfaces/IPaymasterVerifier.sol";
 
+import {console} from "forge-std/console.sol";
+
+interface IUserOpSettlement {
+    function push(bytes32 userOpHash, IPaymasterVerifier.SponsorToken[] calldata sponsorTokens) external;
+}
+
 /**
  * @title CABPaymaster
  * @dev A paymaster used in chain abstracted balance to sponsor the gas fee and tokens cross-chain.
@@ -21,18 +27,23 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
     using UserOperationLib for PackedUserOperation;
 
     IInvoiceManager public immutable invoiceManager;
-
     address public immutable verifyingSigner;
+    address public immutable settlementAddress;
 
     uint256 private constant VALID_TIMESTAMP_OFFSET = PAYMASTER_DATA_OFFSET;
+    //uint256 private constant SIGNATURE_OFFSET = VALID_TIMESTAMP_OFFSET + 64;
+    uint256 private constant SIGNATURE_OFFSET = VALID_TIMESTAMP_OFFSET + 12;
 
-    uint256 private constant SIGNATURE_OFFSET = VALID_TIMESTAMP_OFFSET + 64;
-
-    constructor(IEntryPoint _entryPoint, IInvoiceManager _invoiceManager, address _verifyingSigner, address _owner)
-        BasePaymaster(_entryPoint, _owner)
-    {
+    constructor(
+        IEntryPoint _entryPoint,
+        IInvoiceManager _invoiceManager,
+        address _verifyingSigner,
+        address _owner,
+        address _settlementAddress
+    ) BasePaymaster(_entryPoint, _owner) {
         invoiceManager = _invoiceManager;
         verifyingSigner = _verifyingSigner;
+        settlementAddress = _settlementAddress;
     }
 
     /// @inheritdoc IPaymasterVerifier
@@ -90,13 +101,12 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         );
     }
 
-    function _validatePaymasterUserOp(
-        PackedUserOperation calldata userOp,
-        bytes32, /*userOpHash*/
-        uint256 requiredPreFund
-    ) internal override returns (bytes memory context, uint256 validationData) {
+    function _validatePaymasterUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash, uint256 requiredPreFund)
+        internal
+        override
+        returns (bytes memory context, uint256 validationData)
+    {
         (requiredPreFund);
-
         (uint48 validUntil, uint48 validAfter, bytes calldata signature) =
             parsePaymasterAndData(userOp.paymasterAndData);
 
@@ -106,11 +116,6 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         // revoke the approval at the end of userOp
         for (uint256 i = 0; i < sponsorTokenLength; i++) {
             SponsorToken memory sponsorToken = sponsorTokens[i];
-            // if (sponsorToken.token == ETH) {
-            //     // check that calldata contains `withdrawGasExcess`
-            //     balances[spender] += amount
-            //     continue;
-            // }
             IERC20(sponsorToken.token).approve(sponsorToken.spender, sponsorToken.amount);
         }
 
@@ -120,10 +125,16 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
 
         // don't revert on signature failure: return SIG_VALIDATION_FAILED
         if (verifyingSigner != ECDSA.recover(hash, paymasterSignature)) {
-            return (sponsorTokenData[0:1 + sponsorTokenLength * 72], _packValidationData(true, validUntil, validAfter));
+            return (
+                abi.encodePacked(userOpHash, sponsorTokenData[0:1 + sponsorTokenLength * 72]),
+                _packValidationData(true, validUntil, validAfter)
+            );
         }
 
-        return (sponsorTokenData[0:1 + sponsorTokenLength * 72], _packValidationData(false, validUntil, validAfter));
+        return (
+            abi.encodePacked(userOpHash, sponsorTokenData[0:1 + sponsorTokenLength * 72]),
+            _packValidationData(false, validUntil, validAfter)
+        );
     }
 
     function _postOp(PostOpMode mode, bytes calldata context, uint256 actualGasCost, uint256 actualUserOpFeePerGas)
@@ -131,17 +142,19 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         virtual
         override
     {
-        (uint8 sponsorTokenLength, SponsorToken[] memory sponsorTokens) = parseSponsorTokenData(context);
+        bytes32 userOpHash = bytes32(context[:32]);
+        bytes calldata sponsorTokenData = context[32:];
+
+        (uint8 sponsorTokenLength, SponsorToken[] memory sponsorTokens) = parseSponsorTokenData(sponsorTokenData);
         for (uint8 i = 0; i < sponsorTokenLength; i++) {
-            // if (sponsorToken.token == ETH) {
-            //     balances[spender] -= amount;
-            //     continue;
-            // }
             SponsorToken memory sponsorToken = sponsorTokens[i];
             IERC20(sponsorToken.token).approve(sponsorToken.spender, 0);
         }
 
         // TODO: write in settlement contract on `opSucceeded`
+        if (mode == PostOpMode.opSucceeded) {
+            IUserOpSettlement(settlementAddress).push(userOpHash, sponsorTokens);
+        }
     }
 
     function parsePaymasterAndData(bytes calldata paymasterAndData)
@@ -149,7 +162,8 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         pure
         returns (uint48 validUntil, uint48 validAfter, bytes calldata signature)
     {
-        (validUntil, validAfter) = abi.decode(paymasterAndData[VALID_TIMESTAMP_OFFSET:], (uint48, uint48));
+        validUntil = uint48(bytes6(paymasterAndData[VALID_TIMESTAMP_OFFSET:VALID_TIMESTAMP_OFFSET + 6]));
+        validAfter = uint48(bytes6(paymasterAndData[VALID_TIMESTAMP_OFFSET + 6:VALID_TIMESTAMP_OFFSET + 12]));
         signature = paymasterAndData[SIGNATURE_OFFSET:];
     }
 
@@ -159,31 +173,37 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         returns (bytes calldata sponsorTokenData, bytes calldata paymasterSignature)
     {
         uint8 sponsorTokenLength = uint8(signature[0]);
-        require(signature.length == sponsorTokenLength * 72 + 65 + 1, "CABPaymaster: invalid paymasterAndData");
+        // since sponsorTokenLength is a uint8 (max 255),
+        // if > 2, following `require` statement will revert
+        // sponsorTokenLength * 72 + 65 + 1 > 255
+        // !!! [FAIL: panic: arithmetic underflow or overflow (0x11)] !!!
+        // Avoid check to save gas
+        // TODO: update calculation to support more than 2 sponsor tokens
 
+        require(signature.length == sponsorTokenLength * 72 + 65 + 1, "CABPaymaster: invalid paymasterAndData");
         sponsorTokenData = signature[0:1 + sponsorTokenLength * 72];
         paymasterSignature = signature[sponsorTokenLength * 72 + 1:sponsorTokenLength * 72 + 66];
     }
 
-    function parseSponsorTokenData(bytes calldata sposnorTokenData)
+    function parseSponsorTokenData(bytes calldata sponsorTokenData)
         public
         pure
         returns (uint8 sponsorTokenLength, SponsorToken[] memory sponsorTokens)
     {
-        sponsorTokenLength = uint8(bytes1(sposnorTokenData[0]));
+        sponsorTokenLength = uint8(bytes1(sponsorTokenData[0]));
 
         // 1 byte: length
         // length * 72 bytes: (20 bytes: token adddress + 20 bytes: spender address + 32 bytes: amount)
         require(
-            sposnorTokenData.length == 1 + sponsorTokenLength * (72), "CABPaymaster: invalid sponsorTokenData length"
+            sponsorTokenData.length == 1 + sponsorTokenLength * (72), "CABPaymaster: invalid sponsorTokenData length"
         );
 
         sponsorTokens = new SponsorToken[](sponsorTokenLength);
         for (uint256 i = 0; i < uint256(sponsorTokenLength);) {
             uint256 offset = 1 + i * 72;
-            address token = address(bytes20(sposnorTokenData[offset:offset + 20]));
-            address spender = address(bytes20(sposnorTokenData[offset + 20:offset + 40]));
-            uint256 amount = uint256(bytes32(sposnorTokenData[offset + 40:offset + 72]));
+            address token = address(bytes20(sponsorTokenData[offset:offset + 20]));
+            address spender = address(bytes20(sponsorTokenData[offset + 20:offset + 40]));
+            uint256 amount = uint256(bytes32(sponsorTokenData[offset + 40:offset + 72]));
 
             sponsorTokens[i] = SponsorToken(token, spender, amount);
 
