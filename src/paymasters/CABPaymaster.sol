@@ -14,10 +14,6 @@ import {IPaymasterVerifier} from "../interfaces/IPaymasterVerifier.sol";
 
 import {console} from "forge-std/console.sol";
 
-interface IUserOpSettlement {
-    function push(bytes32 userOpHash, IPaymasterVerifier.SponsorToken[] calldata sponsorTokens) external;
-}
-
 /**
  * @title CABPaymaster
  * @dev A paymaster used in chain abstracted balance to sponsor the gas fee and tokens cross-chain.
@@ -28,22 +24,16 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
 
     IInvoiceManager public immutable invoiceManager;
     address public immutable verifyingSigner;
-    address public immutable settlementAddress;
 
     uint256 private constant VALID_TIMESTAMP_OFFSET = PAYMASTER_DATA_OFFSET;
     //uint256 private constant SIGNATURE_OFFSET = VALID_TIMESTAMP_OFFSET + 64;
     uint256 private constant SIGNATURE_OFFSET = VALID_TIMESTAMP_OFFSET + 12;
 
-    constructor(
-        IEntryPoint _entryPoint,
-        IInvoiceManager _invoiceManager,
-        address _verifyingSigner,
-        address _owner,
-        address _settlementAddress
-    ) BasePaymaster(_entryPoint, _owner) {
+    constructor(IEntryPoint _entryPoint, IInvoiceManager _invoiceManager, address _verifyingSigner, address _owner)
+        BasePaymaster(_entryPoint, _owner)
+    {
         invoiceManager = _invoiceManager;
         verifyingSigner = _verifyingSigner;
-        settlementAddress = _settlementAddress;
     }
 
     /// @inheritdoc IPaymasterVerifier
@@ -124,15 +114,17 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         bytes32 hash = MessageHashUtils.toEthSignedMessageHash(getHash(userOp, validUntil, validAfter));
 
         // don't revert on signature failure: return SIG_VALIDATION_FAILED
+
+        address sender = userOp.getSender();
         if (verifyingSigner != ECDSA.recover(hash, paymasterSignature)) {
             return (
-                abi.encodePacked(userOpHash, sponsorTokenData[0:1 + sponsorTokenLength * 72]),
+                abi.encodePacked(sender, userOpHash, sponsorTokenData[0:1 + sponsorTokenLength * 72]),
                 _packValidationData(true, validUntil, validAfter)
             );
         }
 
         return (
-            abi.encodePacked(userOpHash, sponsorTokenData[0:1 + sponsorTokenLength * 72]),
+            abi.encodePacked(sender, userOpHash, sponsorTokenData[0:1 + sponsorTokenLength * 72]),
             _packValidationData(false, validUntil, validAfter)
         );
     }
@@ -142,8 +134,9 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         virtual
         override
     {
-        bytes32 userOpHash = bytes32(context[:32]);
-        bytes calldata sponsorTokenData = context[32:];
+        address sender = address(bytes20(context[:20]));
+        bytes32 userOpHash = bytes32(context[20:52]);
+        bytes calldata sponsorTokenData = context[52:];
 
         (uint8 sponsorTokenLength, SponsorToken[] memory sponsorTokens) = parseSponsorTokenData(sponsorTokenData);
         for (uint8 i = 0; i < sponsorTokenLength; i++) {
@@ -153,7 +146,11 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
 
         // TODO: write in settlement contract on `opSucceeded`
         if (mode == PostOpMode.opSucceeded) {
-            IUserOpSettlement(settlementAddress).push(userOpHash, sponsorTokens);
+            // TODO: implement batching strategy with a settlement contract
+            // IUserOpSettlement(settlementAddress).push(userOpHash, sponsorTokens);
+
+            // TODO: replace userOp.nonce with coherent account nonce
+            invoiceManager.sendInvoice(userOpHash, sender, uint256(userOpHash));
         }
     }
 
@@ -193,7 +190,7 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         sponsorTokenLength = uint8(bytes1(sponsorTokenData[0]));
 
         // 1 byte: length
-        // length * 72 bytes: (20 bytes: token adddress + 20 bytes: spender address + 32 bytes: amount)
+        // length * 72 bytes: (20 bytes: token address + 20 bytes: spender address + 32 bytes: amount)
         require(
             sponsorTokenData.length == 1 + sponsorTokenLength * (72), "CABPaymaster: invalid sponsorTokenData length"
         );

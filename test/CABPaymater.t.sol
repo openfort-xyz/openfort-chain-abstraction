@@ -13,9 +13,11 @@ import {BaseVault} from "../src/vaults/BaseVault.sol";
 import {IInvoiceManager} from "../src/interfaces/IInvoiceManager.sol";
 import {UpgradeableOpenfortProxy} from "../src/proxy/UpgradeableOpenfortProxy.sol";
 import {MockERC20} from "../src/mocks/MockERC20.sol";
+import {MockSocket} from "../src/mocks/MockSocket.sol";
 import {IPaymasterVerifier} from "../src/interfaces/IPaymasterVerifier.sol";
 import {UserOpSettlement} from "../src/settlement/UserOpSettlement.sol";
 import {IPaymaster} from "account-abstraction/interfaces/IPaymaster.sol";
+import {ISocket} from "@socket/interfaces/ISocket.sol";
 
 contract CABPaymasterTest is Test {
     uint256 immutable BASE_CHAIN_ID = 8453;
@@ -29,7 +31,7 @@ contract CABPaymasterTest is Test {
 
     EntryPoint public entryPoint;
 
-    UserOpSettlement public settlement;
+    InvoiceManager.SocketConfig public socketConfig;
 
     address public verifyingSignerAddress;
     uint256 public verifyingSignerPrivateKey;
@@ -41,7 +43,9 @@ contract CABPaymasterTest is Test {
         entryPoint = new EntryPoint();
         owner = address(1);
         rekt = address(0x9590Ed0C18190a310f4e93CAccc4CC17270bED40);
-        socket = address(0x07e11D1A1543B0D0b91684eb741d1ab7D51ae237);
+
+        // https://developer.socket.tech/dev-resources/deployment-addresses
+        socket = address(new MockSocket(uint32(block.chainid), 42));
 
         verifyingSignerPrivateKey = uint256(keccak256(abi.encodePacked("VERIFIYING_SIGNER")));
         verifyingSignerAddress = vm.addr(verifyingSignerPrivateKey);
@@ -69,11 +73,17 @@ contract CABPaymasterTest is Test {
                 )
             )
         );
-        invoiceManager.initialize(owner, IVaultManager(address(vaultManager)));
-        settlement = UserOpSettlement(payable(new UpgradeableOpenfortProxy(address(new UserOpSettlement(socket)), "")));
-        paymaster = new CABPaymaster(entryPoint, invoiceManager, verifyingSignerAddress, owner, address(settlement));
-        settlement.initialize(owner, address(paymaster), 1e3);
 
+        socketConfig = InvoiceManager.SocketConfig({
+            socket: ISocket(socket),
+            siblingChainSlug: 42,
+            minGasLimit: 1e5, // not enough below 100k gas limit
+            remotePlug: address(invoiceManager),
+            switchboard: address(1)
+        });
+        invoiceManager.initialize(owner, IVaultManager(address(vaultManager)), socketConfig);
+
+        paymaster = new CABPaymaster(entryPoint, invoiceManager, verifyingSignerAddress, owner);
         mockERC20.mint(address(paymaster), PAYMSTER_BASE_MOCK_ERC20_BALANCE);
 
         assertEq(address(invoiceManager.vaultManager()), address(vaultManager));
@@ -96,6 +106,11 @@ contract CABPaymasterTest is Test {
     }
 
     function testValidateUserOp() public {
+        vm.prank(owner);
+        invoiceManager.connect();
+        vm.startPrank(rekt);
+        invoiceManager.registerPaymaster(address(paymaster), paymaster, block.timestamp + 1000);
+
         bytes memory sponsorTokensBytes = getEncodedSponsorTokens(2);
         uint48 validUntil = 1732810044 + 1000;
         uint48 validAfter = 1732810044;
@@ -152,19 +167,31 @@ contract CABPaymasterTest is Test {
         // validate postOp
         paymaster.postOp(IPaymaster.PostOpMode.opSucceeded, context, 1222, 42);
 
-        // Same userOpHash has two sponsor token
-        (address token1, address spender1, uint256 amount1) = settlement.userOpWithSponsorTokens(userOpHash, 0);
-        assertEq(token1, address(mockERC20));
-        assertEq(spender1, rekt);
-        assertEq(amount1, 10000);
+        (address account, uint256 nonce, address _paymaster, uint256 sponsorChainId) =
+            invoiceManager.invoices(userOpHash);
 
-        (address token2, address spender2, uint256 amount2) = settlement.userOpWithSponsorTokens(userOpHash, 1);
-        assertEq(token2, address(mockERC20));
-        assertEq(spender2, rekt);
-        assertEq(amount2, 10000);
+        assertEq(account, rekt);
+        assertEq(nonce, uint256(userOpHash));
+        assertEq(_paymaster, address(paymaster));
+        assertEq(sponsorChainId, block.chainid);
+
+        // TODO: write test for socket data layer
+
+        // Settlement validation is not supported yet
+
+        // Same userOpHash has two sponsor token
+        // (address token1, address spender1, uint256 amount1) = settlement.userOpWithSponsorTokens(userOpHash, 0);
+        // assertEq(token1, address(mockERC20));
+        // assertEq(spender1, rekt);
+        // assertEq(amount1, 10000);
+
+        // (address token2, address spender2, uint256 amount2) = settlement.userOpWithSponsorTokens(userOpHash, 1);
+        // assertEq(token2, address(mockERC20));
+        // assertEq(spender2, rekt);
+        // assertEq(amount2, 10000);
     }
 
-    function testRektCanGetRekt() public {
+    function testRektCanNOTGetRekt() public {
         vm.prank(owner);
         vaultManager.addVault(openfortVault);
 
@@ -196,8 +223,7 @@ contract CABPaymasterTest is Test {
 
         // This Invoice hash doesn't map to any legit invoice
         // Paymaster didn't front any fund for rekt
-        // But still can sign this fake invoice and get repaid
-        // from rekt locked asset.
+
         bytes32 maliciousInvoiceHash = keccak256(
             abi.encode(
                 maliciousInvoice.account,
@@ -212,11 +238,10 @@ contract CABPaymasterTest is Test {
             vm.sign(verifyingSignerPrivateKey, MessageHashUtils.toEthSignedMessageHash(maliciousInvoiceHash));
 
         vm.chainId(BASE_CHAIN_ID);
+
         // Paymaster verifyingSigner calls repay with a fake invoice signature
+        // This should revert
+        vm.expectRevert("InvoiceManager: invoice doesn't exist");
         invoiceManager.repay(keccak256("fake invoice"), maliciousInvoice, abi.encodePacked(r, s, v));
-        // Rekt has been rekt
-        assertEq(vaultManager.vaultShares(rekt, openfortVault), 0);
-        // Evil Malicious Paymaster Has 10000 MockERC20
-        assertEq(mockERC20.balanceOf(address(paymaster)), PAYMSTER_BASE_MOCK_ERC20_BALANCE + 10000);
     }
 }
