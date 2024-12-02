@@ -42,9 +42,10 @@ Trust Assumption:
 *for each* blockchain supported by the ecosystem:
 * Deploy one time-locked Vault implementation per supported ERC20:
    Here is some inspiration:
-    [ERC-4626 Tokenize-Vaults](https://eips.ethereum.org/EIPS/eip-4626)
-    [ERC-7575 Multi-Asset vaults](https://eips.ethereum.org/EIPS/eip-7575)
-    [example of Time-locked vault implementation](https://github.com/superical/time-lock-vault/tree/main)
+    
+    | [ERC-4626 Tokenize-Vaults](https://eips.ethereum.org/EIPS/eip-4626)
+    | [ERC-7575 Multi-Asset vaults](https://eips.ethereum.org/EIPS/eip-7575)
+    | [example of Time-locked vault implementation](https://github.com/superical/time-lock-vault/tree/main)
 * Deploy a custom ERC20 with ecosystem ticker representing the vaults' common "shares"
 * Deploy the Chain Abstraction Paymaster
 
