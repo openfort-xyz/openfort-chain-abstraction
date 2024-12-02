@@ -90,12 +90,12 @@ interface IInvoiceManager {
 
     /**
      * @notice Create a new invoice.
-     * @dev The invoideId is generated using the sender, nonce, chainId and repayChainId.
+     * @dev The invoideId is the userOpHash.
+     * @param userOpHash The hash of the user operation.
+     * @param account The address of the account.
      * @param nonce The nonce of the invoice.
-     * @param paymaster The address of the paymaster.
-     * @param invoiceId The ID of the invoice.
      */
-    function createInvoice(uint256 nonce, address paymaster, bytes32 invoiceId) external;
+    function sendInvoice(bytes32 userOpHash, address account, uint256 nonce) external;
 
     /**
      * @notice Repay the invoice.

@@ -29,17 +29,20 @@ contract CABPaymasterTest is Test {
 
     EntryPoint public entryPoint;
 
-    UserOpSettlement public settlement;
+    InvoiceManager.SocketConfig public socketConfig;
 
     address public verifyingSignerAddress;
     uint256 public verifyingSignerPrivateKey;
     address public owner;
     address public rekt;
+    address public socket;
 
     function setUp() public {
         entryPoint = new EntryPoint();
         owner = address(1);
         rekt = address(0x9590Ed0C18190a310f4e93CAccc4CC17270bED40);
+        // https://developer.socket.tech/dev-resources/deployment-addresses
+        socket = address(0xEA59E2b1539b514290dD3dCEa989Ea36279aC6F2);
 
         verifyingSignerPrivateKey = uint256(keccak256(abi.encodePacked("VERIFIYING_SIGNER")));
         verifyingSignerAddress = vm.addr(verifyingSignerPrivateKey);
@@ -67,11 +70,17 @@ contract CABPaymasterTest is Test {
                 )
             )
         );
-        invoiceManager.initialize(owner, IVaultManager(address(vaultManager)));
-        settlement = UserOpSettlement(payable(new UpgradeableOpenfortProxy(address(new UserOpSettlement()), "")));
-        paymaster = new CABPaymaster(entryPoint, invoiceManager, verifyingSignerAddress, owner, address(settlement));
-        settlement.initialize(owner, address(paymaster));
 
+        socketConfig = InvoiceManager.SocketConfig({
+            socketAddress: socket,
+            siblingChainSlug: 42,
+            minGasLimit: 1e3,
+            remotePlug: address(0),
+            switchboard: address(0xB9EDe9aaEaA40e35033ABBC872D141950d08cc4d)
+        });
+        invoiceManager.initialize(owner, IVaultManager(address(vaultManager)), socketConfig);
+
+        paymaster = new CABPaymaster(entryPoint, invoiceManager, verifyingSignerAddress, owner);
         mockERC20.mint(address(paymaster), PAYMSTER_BASE_MOCK_ERC20_BALANCE);
 
         assertEq(address(invoiceManager.vaultManager()), address(vaultManager));
@@ -150,16 +159,20 @@ contract CABPaymasterTest is Test {
         // validate postOp
         paymaster.postOp(IPaymaster.PostOpMode.opSucceeded, context, 1222, 42);
 
-        // Same userOpHash has two sponsor token
-        (address token1, address spender1, uint256 amount1) = settlement.userOpWithSponsorTokens(userOpHash, 0);
-        assertEq(token1, address(mockERC20));
-        assertEq(spender1, rekt);
-        assertEq(amount1, 10000);
+        // TODO: write test for socket data layer
 
-        (address token2, address spender2, uint256 amount2) = settlement.userOpWithSponsorTokens(userOpHash, 1);
-        assertEq(token2, address(mockERC20));
-        assertEq(spender2, rekt);
-        assertEq(amount2, 10000);
+        // Settlement validation is not supported yet
+
+        // Same userOpHash has two sponsor token
+        // (address token1, address spender1, uint256 amount1) = settlement.userOpWithSponsorTokens(userOpHash, 0);
+        // assertEq(token1, address(mockERC20));
+        // assertEq(spender1, rekt);
+        // assertEq(amount1, 10000);
+
+        // (address token2, address spender2, uint256 amount2) = settlement.userOpWithSponsorTokens(userOpHash, 1);
+        // assertEq(token2, address(mockERC20));
+        // assertEq(spender2, rekt);
+        // assertEq(amount2, 10000);
     }
 
     function testRektCanGetRekt() public {
