@@ -1,15 +1,21 @@
 # Openfort Ecosystem abstraction
 
 ## Overview
-Ecosystems serve as parent entities for groups of apps operating across different blockchains. Openfort [**ecosystem wallets**](https://www.openfort.xyz/docs/guides/ecosystem) enable seamless interoperability between applications, allowing ecosystems to design their ideal, unified wallet experience. The next evolution is consolidating user liquidity across apps, providing a single, unified dollar balance instantly spendable across the ecosystem. This vision will be powered by Openfort's advanced chain abstraction implementation based on [MagicSpend++](https://ethresear.ch/t/magicspend-spend-now-debit-later/19678/9) hosted in this repository.
+Ecosystems serve as parent entities for groups of apps operating across different blockchains. Openfort [**ecosystem wallets**](https://www.openfort.xyz/docs/guides/ecosystem) enable seamless interoperability between applications, allowing ecosystems to design their ideal, unified wallet experience. The next evolution is consolidating user liquidity across apps, providing a single, unified dollar balance instantly spendable across the ecosystem. This vision will be powered by Openfort's advanced chain abstraction implementation based on [MagicSpend++](https://ethresear.ch/t/magicspend-spend-now-debit-later/19678/9) hosted in this repository. With this setup, ecosystems have the opportunitiy to become Liquidity Providers (LPs) for their users, sharing with them the value that would otherwise be captured by solvers/fillers.
 
 You will find *at least* the following contracts:
 * time-locked Vault and related interfaces
 * Chain Abstraction Paymaster and related interfaces
+* Invoice Manage
+* Vault Manager
 
 Any additional contracts will be added to the repository as needed...
 
-## Ecosystem Chain Abstraction Settings: accessible from Openfort Dashboard
+## Architecture
+
+![architecture](./assets/archi.jpg)
+
+## Ecosystem Chain Abstraction Settings: accessible fromOpenfort Dashboard (product specs)
 
 #### Vault
 - Locking period
@@ -33,19 +39,23 @@ _Note:_ This "locking" can be simplified into a **SEND** transaction from an EOA
 
 Trust Assumption:
 * ATM, user *MUST* trust owner of `verifyingSigner` address to call `repay` from `InvoiceManager` only after the Paymaster fronted the funds. 🚩 🚩 🚩 
-    Possible solution: write invoice on a setllement contract from Paymaster `_postOp` on `opSucceeded` and leverage socket DL to call the invoice manager on the source chain and get reimbursed.
+    - Possible solutions: 
+        -  write invoice on a settlement contract from Paymaster `_postOp` on `opSucceeded` and leverage socket DL to call the invoice manager on the source chain and get reimbursed.
+        - same as above but with Polymer Prover. (cf. architecture above) => Message Passing vs cross-l2 proving (optimism chains only)
 * Ecosystems *MUST* trust Openfort's Paymaster Service to verify user-locked balances and append its special signature to the `paymasterAndData` userOperation field.
 
 
 ### Chain Abstraction Activation process
 
 *for each* blockchain supported by the ecosystem:
+* Deploy a custom ERC20 with ecosystem ticker representing the vaults' common "shares" (optional, share be represented as uint256 in the Vault implementation)
 * Deploy one time-locked Vault implementation per supported ERC20:
    Here is some inspiration:
     [ERC-4626 Tokenize-Vaults](https://eips.ethereum.org/EIPS/eip-4626)
     [ERC-7575 Multi-Asset vaults](https://eips.ethereum.org/EIPS/eip-7575)
     [example of Time-locked vault implementation](https://github.com/superical/time-lock-vault/tree/main)
-* Deploy a custom ERC20 with ecosystem ticker representing the vaults' common "shares"
+* Deploy Vault Manager
+* Deploy Invoice Manager
 * Deploy the Chain Abstraction Paymaster
 
 
