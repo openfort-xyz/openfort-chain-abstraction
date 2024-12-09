@@ -10,10 +10,12 @@ import {IInvoiceManager} from "../interfaces/IInvoiceManager.sol";
 import {IPaymasterVerifier} from "../interfaces/IPaymasterVerifier.sol";
 import {IVault} from "../interfaces/IVault.sol";
 import {IVaultManager} from "../interfaces/IVaultManager.sol";
+import {ISocket} from "@socket/interfaces/ISocket.sol";
+import {IPlug} from "@socket/interfaces/IPlug.sol";
 
-contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgradeable, IInvoiceManager {
+contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgradeable, IInvoiceManager, IPlug {
     IVaultManager public vaultManager;
-
+    ISocket public socket;
     /// @notice Mapping: invoiceId => Invoice to store the invoice.
     mapping(bytes32 => Invoice) public invoices;
 
@@ -27,11 +29,27 @@ contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardU
         _disableInitializers();
     }
 
-    function initialize(address initialOwner, IVaultManager _vaultManager) public virtual initializer {
+    // TODO: add multi plug support
+    struct SocketConfig {
+        ISocket socket;
+        uint32 siblingChainSlug;
+        uint256 minGasLimit;
+        address remotePlug;
+        address switchboard;
+    }
+
+    SocketConfig public socketConfig;
+
+    function initialize(address initialOwner, IVaultManager _vaultManager, SocketConfig memory _socketConfig)
+        public
+        virtual
+        initializer
+    {
         __Ownable_init(initialOwner);
         __ReentrancyGuard_init();
 
         vaultManager = _vaultManager;
+        socketConfig = _socketConfig;
     }
 
     function _authorizeUpgrade(address) internal override onlyOwner {}
@@ -60,15 +78,49 @@ contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardU
         delete cabPaymasters[msg.sender];
     }
 
-    /// @inheritdoc IInvoiceManager
-    function createInvoice(uint256 nonce, address paymaster, bytes32 invoiceId) external override {
+    function connect() external onlyOwner {
+        socketConfig.socket.connect(
+            socketConfig.siblingChainSlug, socketConfig.remotePlug, socketConfig.switchboard, socketConfig.switchboard
+        );
+    }
+
+    // @inheritdoc IPlug
+    function inbound(uint32, bytes calldata payload) external payable override {
+        if (msg.sender != address(socketConfig.socket)) revert("InvoiceManager: not socket");
+        (bytes32 userOpHash, address account, uint256 nonce, address paymaster) =
+            abi.decode(payload, (bytes32, address, uint256, address));
+        // UserOpHash is the invoiceId
+        createInvoice(userOpHash, account, nonce, paymaster);
+    }
+
+    function sendInvoice(bytes32 userOpHash, address account, uint256 nonce) external {
+        if (msg.sender != cabPaymasters[account].paymaster) revert("InvoiceManager: not paymaster");
+
+        bytes memory payload = abi.encode(userOpHash, account, nonce, msg.sender);
+        uint256 fee = socketConfig.socket.getMinFees(
+            socketConfig.minGasLimit,
+            uint256(payload.length),
+            bytes32(0),
+            bytes32(0),
+            socketConfig.siblingChainSlug,
+            address(socketConfig.socket)
+        );
+
+        if (address(this).balance < fee) revert("InvoiceManager: insufficient balance");
+
+        socketConfig.socket.outbound{value: fee}(
+            socketConfig.siblingChainSlug, socketConfig.minGasLimit, bytes32(0), bytes32(0), payload
+        );
+    }
+
+    function createInvoice(bytes32 invoiceId, address account, uint256 nonce, address paymaster) private {
         // check if the invoice already exists
         require(invoices[invoiceId].account == address(0), "InvoiceManager: invoice already exists");
 
         // store the invoice
-        invoices[invoiceId] = Invoice(msg.sender, nonce, paymaster, block.chainid);
+        invoices[invoiceId] = Invoice(account, nonce, paymaster, block.chainid);
 
-        emit InvoiceCreated(invoiceId, msg.sender, paymaster);
+        emit InvoiceCreated(invoiceId, account, paymaster);
     }
 
     /// @inheritdoc IInvoiceManager
@@ -79,6 +131,12 @@ contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardU
     {
         IPaymasterVerifier paymasterVerifier = cabPaymasters[invoice.account].paymasterVerifier;
         require(address(paymasterVerifier) != address(0), "InvoiceManager: paymaster verifier not registered");
+
+        // This verification is the cross-chain proof of execution
+        // since only the remote paymaster can create an invoice through socket DL
+        // from its _postOp hooks on `userOpsucceeded`
+
+        require(invoices[invoiceId].account == invoice.account, "InvoiceManager: invoice doesn't exist");
         require(!isInvoiceRepaid[invoiceId], "InvoiceManager: invoice already repaid");
 
         bool isVerified = paymasterVerifier.verifyInvoice(invoiceId, invoice, proof);
@@ -89,7 +147,6 @@ contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardU
 
         isInvoiceRepaid[invoiceId] = true;
         vaultManager.withdrawSponsorToken(invoice.account, vaults, amounts, invoice.paymaster);
-
         emit InvoiceRepaid(invoiceId, invoice.account, invoice.paymaster);
     }
 
