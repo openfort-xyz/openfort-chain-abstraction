@@ -9,6 +9,12 @@ You will find *at least* the following contracts:
 
 Any additional contracts will be added to the repository as needed...
 
+
+## Architecture
+
+![architecture](./assets/archi.jpg)
+
+
 ## Ecosystem Chain Abstraction Settings: accessible from Openfort Dashboard
 
 #### Vault

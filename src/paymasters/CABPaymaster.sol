@@ -54,6 +54,8 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
     ) external virtual override returns (bool) {
         bytes32 hash = MessageHashUtils.toEthSignedMessageHash(getInvoiceHash(invoice));
         return verifyingSigner == ECDSA.recover(hash, proof);
+
+        // TODO: add polymer CrossL2Prover call
     }
 
     function withdraw(address token, uint256 amount) external override onlyOwner {
