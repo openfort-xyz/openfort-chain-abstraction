@@ -17,6 +17,7 @@ import {IPaymasterVerifier} from "../src/interfaces/IPaymasterVerifier.sol";
 import {UserOpSettlement} from "../src/settlement/UserOpSettlement.sol";
 import {IPaymaster} from "account-abstraction/interfaces/IPaymaster.sol";
 import {ICrossL2Prover} from "@vibc-core-smart-contracts/contracts/interfaces/ICrossL2Prover.sol";
+
 contract CABPaymasterTest is Test {
     uint256 immutable BASE_CHAIN_ID = 8453;
     uint256 immutable PAYMSTER_BASE_MOCK_ERC20_BALANCE = 100000;
@@ -70,9 +71,9 @@ contract CABPaymasterTest is Test {
                 )
             )
         );
-        invoiceManager.initialize(owner, IVaultManager(address(vaultManager)), crossL2Prover);
+        invoiceManager.initialize(owner, IVaultManager(address(vaultManager)));
         settlement = UserOpSettlement(payable(new UpgradeableOpenfortProxy(address(new UserOpSettlement()), "")));
-        paymaster = new CABPaymaster(entryPoint, invoiceManager, verifyingSignerAddress, owner, address(settlement));
+        paymaster = new CABPaymaster(entryPoint, invoiceManager, crossL2Prover, verifyingSignerAddress, owner);
         settlement.initialize(owner, address(paymaster));
 
         mockERC20.mint(address(paymaster), PAYMSTER_BASE_MOCK_ERC20_BALANCE);
