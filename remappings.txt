@@ -1,3 +1,4 @@
 @openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
 @openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/
+@vibc-core-smart-contracts/=lib/vibc-core-smart-contracts/
 @solady/=lib/solady/src/
