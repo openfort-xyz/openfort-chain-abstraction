@@ -97,18 +97,37 @@ contract CABPaymasterTest is Test {
         return abi.encodePacked(uint8(len), encodedSponsorToken);
     }
 
+    function getEncodedRepayTokens(uint8 len) internal returns (bytes memory encodedRepayToken) {
+        IInvoiceManager.RepayTokenInfo[] memory repayTokens = new IInvoiceManager.RepayTokenInfo[](len);
+        for (uint8 i = 0; i < len; i++) {
+            repayTokens[i] =
+                IInvoiceManager.RepayTokenInfo({vault: openfortVault, amount: 10000, chainId: BASE_CHAIN_ID});
+            encodedRepayToken = bytes.concat(
+                encodedRepayToken,
+                bytes20(address(repayTokens[i].vault)),
+                bytes32(repayTokens[i].amount),
+                bytes32(repayTokens[i].chainId)
+            );
+        }
+        return abi.encodePacked(uint8(len), encodedRepayToken);
+    }
+
     function testValidateUserOp() public {
+        vm.chainId(BASE_CHAIN_ID);
         bytes memory sponsorTokensBytes = getEncodedSponsorTokens(2);
+        bytes memory repayTokensBytes = getEncodedRepayTokens(2);
         uint48 validUntil = 1732810044 + 1000;
         uint48 validAfter = 1732810044;
         uint128 preVerificationGas = 1e5;
         uint128 postVerificationGas = 1e5;
+
         bytes memory paymasterAndData = bytes.concat(
             bytes20(address(paymaster)),
             bytes16(preVerificationGas),
             bytes16(postVerificationGas),
             bytes6(validUntil),
             bytes6(validAfter),
+            repayTokensBytes,
             sponsorTokensBytes
         );
 
@@ -131,7 +150,7 @@ contract CABPaymasterTest is Test {
                 keccak256(userOp.initCode),
                 keccak256(userOp.callData),
                 userOp.accountGasLimits,
-                keccak256(sponsorTokensBytes),
+                keccak256(abi.encode(sponsorTokensBytes, repayTokensBytes)),
                 uint256(bytes32(abi.encodePacked(preVerificationGas, postVerificationGas))),
                 userOp.preVerificationGas,
                 userOp.gasFees,
@@ -151,74 +170,14 @@ contract CABPaymasterTest is Test {
         (bytes memory context, uint256 validationData) =
             paymaster.validatePaymasterUserOp(userOp, userOpHash, type(uint256).max);
 
+        (, IInvoiceManager.RepayTokenInfo[] memory repayTokens) = paymaster.parseRepayTokenData(repayTokensBytes);
+
         // validate postOp
-        paymaster.postOp(IPaymaster.PostOpMode.opSucceeded, context, 1222, 42);
-
-        // Same userOpHash has two sponsor token
-        (address token1, address spender1, uint256 amount1) = settlement.userOpWithSponsorTokens(userOpHash, 0);
-        assertEq(token1, address(mockERC20));
-        assertEq(spender1, rekt);
-        assertEq(amount1, 10000);
-
-        (address token2, address spender2, uint256 amount2) = settlement.userOpWithSponsorTokens(userOpHash, 1);
-        assertEq(token2, address(mockERC20));
-        assertEq(spender2, rekt);
-        assertEq(amount2, 10000);
-    }
-
-    function testRektCanGetRekt() public {
-        vm.prank(owner);
-        vaultManager.addVault(openfortVault);
-
-        vm.startPrank(rekt);
-        invoiceManager.registerPaymaster(address(paymaster), paymaster, block.timestamp + 1000);
-        mockERC20.mint(rekt, 10000);
-
-        // Rekt Has 10000 MockERC20
-        assertEq(mockERC20.balanceOf(rekt), 10000);
-
-        mockERC20.approve(address(vaultManager), 10000);
-        vaultManager.deposit(mockERC20, openfortVault, 10000, false);
-
-        // Openfort Vault Has 10000 MockERC20
-        assertEq(openfortVault.totalAssets(), 10000);
-        // Rekt Has 10000 Shares In Openfort Vault
-        assertEq(vaultManager.vaultShares(rekt, openfortVault), 10000);
-
-        IInvoiceManager.RepayTokenInfo[] memory repayTokenInfos = new IInvoiceManager.RepayTokenInfo[](1);
-        repayTokenInfos[0] =
-            IInvoiceManager.RepayTokenInfo({vault: openfortVault, amount: 10000, chainId: BASE_CHAIN_ID});
-        IInvoiceManager.InvoiceWithRepayTokens memory maliciousInvoice = IInvoiceManager.InvoiceWithRepayTokens({
-            account: rekt,
-            nonce: 0,
-            paymaster: address(paymaster),
-            sponsorChainId: BASE_CHAIN_ID,
-            repayTokenInfos: repayTokenInfos
-        });
-
-        // This Invoice hash doesn't map to any legit invoice
-        // Paymaster didn't front any fund for rekt
-        // But still can sign this fake invoice and get repaid
-        // from rekt locked asset.
-        bytes32 maliciousInvoiceHash = keccak256(
-            abi.encode(
-                maliciousInvoice.account,
-                maliciousInvoice.nonce,
-                maliciousInvoice.paymaster,
-                maliciousInvoice.sponsorChainId,
-                keccak256(abi.encode(maliciousInvoice.repayTokenInfos))
-            )
+        // This is the event that we must track on dest chain and prove on source chain with Polymer proof system
+        vm.expectEmit();
+        emit IPaymasterVerifier.InvoiceCreated(
+            invoiceManager.getInvoiceId(rekt, address(paymaster), userOp.nonce, BASE_CHAIN_ID, repayTokens)
         );
-
-        (uint8 v, bytes32 r, bytes32 s) =
-            vm.sign(verifyingSignerPrivateKey, MessageHashUtils.toEthSignedMessageHash(maliciousInvoiceHash));
-
-        vm.chainId(BASE_CHAIN_ID);
-        // Paymaster verifyingSigner calls repay with a fake invoice signature
-        invoiceManager.repay(keccak256("fake invoice"), maliciousInvoice, abi.encodePacked(r, s, v));
-        // Rekt has been rekt
-        assertEq(vaultManager.vaultShares(rekt, openfortVault), 0);
-        // Evil Malicious Paymaster Has 10000 MockERC20
-        assertEq(mockERC20.balanceOf(address(paymaster)), PAYMSTER_BASE_MOCK_ERC20_BALANCE + 10000);
+        paymaster.postOp(IPaymaster.PostOpMode.opSucceeded, context, 1222, 42);
     }
 }
