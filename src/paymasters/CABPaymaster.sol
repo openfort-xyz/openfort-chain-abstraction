@@ -63,16 +63,20 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
 
         // _proof is an opaque bytes object to potentialy support different proof systems
         // This paymasterVerifier supports Polymer proof system
-        (bytes memory receiptIndex, bytes memory receiptRLPEncodedBytes, bytes memory proof) =
-            abi.decode(_proof, (bytes, bytes, bytes));
+        (bytes memory receiptIndex, bytes memory receiptRLPEncodedBytes, uint256 logIndex, bytes memory logBytes, bytes memory proof) =
+            abi.decode(_proof, (bytes, bytes, uint256, bytes, bytes));
 
-        bool isValid = crossL2Prover.validateReceipt(receiptIndex, receiptRLPEncodedBytes, proof);
+        bool isValid = crossL2Prover.validateEvent(receiptIndex, receiptRLPEncodedBytes, logIndex, logBytes, proof);
+
 
         if (!isValid) {
             return false;
         }
 
+
         // TODO: return true if invoiceID is in the receipt
+
+        // logBytes is the abi.encode(InvoiceCreated(invoiceId)) Probably more things
 
         // Since invoiceID is calculated from the invoice that contains the paymaster address
         // we don't need to verify the paymaster backend (verifyingSigner) signature
@@ -178,7 +182,7 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
 
         // TODO: write in settlement contract on `opSucceeded`
         if (mode == PostOpMode.opSucceeded) {
-            // emit InvoiceCreated(invoiceId);
+            emit InvoiceCreated(invoiceId);
         }
     }
 
@@ -220,7 +224,7 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         // 1 byte: length
         // length * 72 bytes: (20 bytes: token adddress + 20 bytes: spender address + 32 bytes: amount)
         require(
-            sponsorTokenData.length == 1 + sponsorTokenLength * (72), "CABPaymaster: invalid sponsorTokenData length"
+            sponsorTokenData.length == 1 + sponsorTokenLength * 72, "CABPaymaster: invalid sponsorTokenData length"
         );
 
         sponsorTokens = new SponsorToken[](sponsorTokenLength);
