@@ -12,11 +12,9 @@ import {IInvoiceManager} from "../interfaces/IInvoiceManager.sol";
 import {IVault} from "../interfaces/IVault.sol";
 import {IPaymasterVerifier} from "../interfaces/IPaymasterVerifier.sol";
 
-import {console} from "forge-std/console.sol";
+import {ICrossL2Prover} from "@vibc-core-smart-contracts/contracts/interfaces/ICrossL2Prover.sol";
 
-interface IUserOpSettlement {
-    function push(bytes32 userOpHash, IPaymasterVerifier.SponsorToken[] calldata sponsorTokens) external;
-}
+import {console} from "forge-std/console.sol";
 
 /**
  * @title CABPaymaster
@@ -27,35 +25,60 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
     using UserOperationLib for PackedUserOperation;
 
     IInvoiceManager public immutable invoiceManager;
+    ICrossL2Prover public immutable crossL2Prover;
+
     address public immutable verifyingSigner;
-    address public immutable settlementAddress;
 
     uint256 private constant VALID_TIMESTAMP_OFFSET = PAYMASTER_DATA_OFFSET;
     //uint256 private constant SIGNATURE_OFFSET = VALID_TIMESTAMP_OFFSET + 64;
     uint256 private constant SIGNATURE_OFFSET = VALID_TIMESTAMP_OFFSET + 12;
 
+    event InvoiceCreated(bytes32 invoiceId);
+
     constructor(
         IEntryPoint _entryPoint,
         IInvoiceManager _invoiceManager,
+        ICrossL2Prover _crossL2Prover,
         address _verifyingSigner,
-        address _owner,
-        address _settlementAddress
+        address _owner
     ) BasePaymaster(_entryPoint, _owner) {
         invoiceManager = _invoiceManager;
+        crossL2Prover = _crossL2Prover;
         verifyingSigner = _verifyingSigner;
-        settlementAddress = _settlementAddress;
     }
 
     /// @inheritdoc IPaymasterVerifier
     function verifyInvoice(
-        bytes32 invoiceId,
-        IInvoiceManager.InvoiceWithRepayTokens calldata invoice,
-        bytes calldata proof
+        bytes32 _invoiceId,
+        IInvoiceManager.InvoiceWithRepayTokens calldata _invoice,
+        bytes calldata _proof
     ) external virtual override returns (bool) {
-        bytes32 hash = MessageHashUtils.toEthSignedMessageHash(getInvoiceHash(invoice));
-        return verifyingSigner == ECDSA.recover(hash, proof);
+        // Check if the invoiceId corresponds to the invoice
 
-        // TODO: add polymer CrossL2Prover call
+        bytes32 invoiceId = invoiceManager.getInvoiceId(
+            _invoice.account, _invoice.paymaster, _invoice.nonce, _invoice.sponsorChainId, _invoice.repayTokenInfos
+        );
+
+        if (invoiceId != _invoiceId) return false;
+
+        // _proof is an opaque bytes object to potentialy support different proof systems
+        // This paymasterVerifier supports Polymer proof system
+        (bytes memory receiptIndex, bytes memory receiptRLPEncodedBytes, bytes memory proof) =
+            abi.decode(_proof, (bytes, bytes, bytes));
+
+        bool isValid = crossL2Prover.validateReceipt(receiptIndex, receiptRLPEncodedBytes, proof);
+
+        if (!isValid) {
+            return false;
+        }
+
+        // TODO: return true if invoiceID is in the receipt
+
+        // Since invoiceID is calculated from the invoice that contains the paymaster address
+        // we don't need to verify the paymaster backend (verifyingSigner) signature
+
+        // bytes32 hash = MessageHashUtils.toEthSignedMessageHash(getInvoiceHash(invoice));
+        // return verifyingSigner == ECDSA.recover(hash, proof);
     }
 
     function withdraw(address token, uint256 amount) external override onlyOwner {
@@ -155,7 +178,7 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
 
         // TODO: write in settlement contract on `opSucceeded`
         if (mode == PostOpMode.opSucceeded) {
-            IUserOpSettlement(settlementAddress).push(userOpHash, sponsorTokens);
+            // emit InvoiceCreated(invoiceId);
         }
     }
 

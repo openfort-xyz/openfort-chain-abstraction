@@ -6,8 +6,6 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-import {ICrossL2Prover} from "@vibc-core-smart-contracts/contracts/interfaces/ICrossL2Prover.sol";
-
 import {IInvoiceManager} from "../interfaces/IInvoiceManager.sol";
 import {IPaymasterVerifier} from "../interfaces/IPaymasterVerifier.sol";
 import {IVault} from "../interfaces/IVault.sol";
@@ -15,7 +13,6 @@ import {IVaultManager} from "../interfaces/IVaultManager.sol";
 
 contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgradeable, IInvoiceManager {
     IVaultManager public vaultManager;
-    ICrossL2Prover public crossL2Prover;
 
     /// @notice Mapping: invoiceId => Invoice to store the invoice.
     mapping(bytes32 => Invoice) public invoices;
@@ -30,16 +27,11 @@ contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardU
         _disableInitializers();
     }
 
-    function initialize(address initialOwner, IVaultManager _vaultManager, ICrossL2Prover _crossL2Prover)
-        public
-        virtual
-        initializer
-    {
+    function initialize(address initialOwner, IVaultManager _vaultManager) public virtual initializer {
         __Ownable_init(initialOwner);
         __ReentrancyGuard_init();
 
         vaultManager = _vaultManager;
-        crossL2Prover = _crossL2Prover;
     }
 
     function _authorizeUpgrade(address) internal override onlyOwner {}
@@ -68,6 +60,8 @@ contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardU
         delete cabPaymasters[msg.sender];
     }
 
+    // bytes calldata receiptIndex, bytes calldata receiptRLPEncodedBytes
+
     /// @inheritdoc IInvoiceManager
     function createInvoice(uint256 nonce, address paymaster, bytes32 invoiceId) external override {
         // check if the invoice already exists
@@ -90,6 +84,7 @@ contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardU
         require(!isInvoiceRepaid[invoiceId], "InvoiceManager: invoice already repaid");
 
         bool isVerified = paymasterVerifier.verifyInvoice(invoiceId, invoice, proof);
+
         if (!isVerified) {
             revert("InvoiceManager: invalid invoice");
         }
@@ -124,12 +119,14 @@ contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardU
     }
 
     /// @inheritdoc IInvoiceManager
-    function getInvoiceId(address account, address paymaster, uint256 nonce, RepayTokenInfo[] calldata repayTokenInfos)
-        public
-        view
-        returns (bytes32)
-    {
-        return keccak256(abi.encodePacked(account, paymaster, nonce, block.chainid, abi.encode(repayTokenInfos)));
+    function getInvoiceId(
+        address account,
+        address paymaster,
+        uint256 nonce,
+        uint256 sponsorChainId,
+        RepayTokenInfo[] calldata repayTokenInfos
+    ) public view returns (bytes32) {
+        return keccak256(abi.encodePacked(account, paymaster, nonce, sponsorChainId, abi.encode(repayTokenInfos)));
     }
 
     function _getRepayToken(InvoiceWithRepayTokens memory invoice)
