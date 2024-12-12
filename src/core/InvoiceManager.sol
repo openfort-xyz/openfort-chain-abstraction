@@ -6,6 +6,8 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
+import {ICrossL2Prover} from "@vibc-core-smart-contracts/contracts/interfaces/ICrossL2Prover.sol";
+
 import {IInvoiceManager} from "../interfaces/IInvoiceManager.sol";
 import {IPaymasterVerifier} from "../interfaces/IPaymasterVerifier.sol";
 import {IVault} from "../interfaces/IVault.sol";
@@ -13,6 +15,7 @@ import {IVaultManager} from "../interfaces/IVaultManager.sol";
 
 contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgradeable, IInvoiceManager {
     IVaultManager public vaultManager;
+    ICrossL2Prover public crossL2Prover;
 
     /// @notice Mapping: invoiceId => Invoice to store the invoice.
     mapping(bytes32 => Invoice) public invoices;
@@ -27,11 +30,16 @@ contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardU
         _disableInitializers();
     }
 
-    function initialize(address initialOwner, IVaultManager _vaultManager) public virtual initializer {
+    function initialize(address initialOwner, IVaultManager _vaultManager, ICrossL2Prover _crossL2Prover)
+        public
+        virtual
+        initializer
+    {
         __Ownable_init(initialOwner);
         __ReentrancyGuard_init();
 
         vaultManager = _vaultManager;
+        crossL2Prover = _crossL2Prover;
     }
 
     function _authorizeUpgrade(address) internal override onlyOwner {}
