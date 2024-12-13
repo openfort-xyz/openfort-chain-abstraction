@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "outDir": "./bin",
+    "lib": ["es2021", "dom"],
+    "target": "es2021",
+    "module": "commonjs",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  },
+  "include": ["**/*.ts", "**/*.js"],
+  "exclude": ["node_modules"]
+}

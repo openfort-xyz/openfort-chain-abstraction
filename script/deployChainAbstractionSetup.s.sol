@@ -54,6 +54,7 @@ contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint {
             )
         );
 
+        console.log("VaultManager Address", address(vaultManager));
         invoiceManager.initialize(owner, IVaultManager(address(vaultManager)));
 
         for (uint256 i = 0; i < tokens.length; i++) {
