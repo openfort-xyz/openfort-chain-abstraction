@@ -60,6 +60,8 @@ contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardU
         delete cabPaymasters[msg.sender];
     }
 
+    // bytes calldata receiptIndex, bytes calldata receiptRLPEncodedBytes
+
     /// @inheritdoc IInvoiceManager
     function createInvoice(uint256 nonce, address paymaster, bytes32 invoiceId) external override {
         // check if the invoice already exists
@@ -82,6 +84,7 @@ contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardU
         require(!isInvoiceRepaid[invoiceId], "InvoiceManager: invoice already repaid");
 
         bool isVerified = paymasterVerifier.verifyInvoice(invoiceId, invoice, proof);
+
         if (!isVerified) {
             revert("InvoiceManager: invalid invoice");
         }
@@ -116,12 +119,14 @@ contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardU
     }
 
     /// @inheritdoc IInvoiceManager
-    function getInvoiceId(address account, address paymaster, uint256 nonce, RepayTokenInfo[] calldata repayTokenInfos)
-        public
-        view
-        returns (bytes32)
-    {
-        return keccak256(abi.encodePacked(account, paymaster, nonce, block.chainid, abi.encode(repayTokenInfos)));
+    function getInvoiceId(
+        address account,
+        address paymaster,
+        uint256 nonce,
+        uint256 sponsorChainId,
+        RepayTokenInfo[] calldata repayTokenInfos
+    ) public view returns (bytes32) {
+        return keccak256(abi.encodePacked(account, paymaster, nonce, sponsorChainId, abi.encode(repayTokenInfos)));
     }
 
     function _getRepayToken(InvoiceWithRepayTokens memory invoice)

@@ -11,12 +11,7 @@ import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/Messa
 import {IInvoiceManager} from "../interfaces/IInvoiceManager.sol";
 import {IVault} from "../interfaces/IVault.sol";
 import {IPaymasterVerifier} from "../interfaces/IPaymasterVerifier.sol";
-
-import {console} from "forge-std/console.sol";
-
-interface IUserOpSettlement {
-    function push(bytes32 userOpHash, IPaymasterVerifier.SponsorToken[] calldata sponsorTokens) external;
-}
+import {ICrossL2Prover} from "@vibc-core-smart-contracts/contracts/interfaces/ICrossL2Prover.sol";
 
 /**
  * @title CABPaymaster
@@ -27,35 +22,54 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
     using UserOperationLib for PackedUserOperation;
 
     IInvoiceManager public immutable invoiceManager;
+    ICrossL2Prover public immutable crossL2Prover;
+
     address public immutable verifyingSigner;
-    address public immutable settlementAddress;
 
     uint256 private constant VALID_TIMESTAMP_OFFSET = PAYMASTER_DATA_OFFSET;
-    //uint256 private constant SIGNATURE_OFFSET = VALID_TIMESTAMP_OFFSET + 64;
     uint256 private constant SIGNATURE_OFFSET = VALID_TIMESTAMP_OFFSET + 12;
 
     constructor(
         IEntryPoint _entryPoint,
         IInvoiceManager _invoiceManager,
+        ICrossL2Prover _crossL2Prover,
         address _verifyingSigner,
-        address _owner,
-        address _settlementAddress
+        address _owner
     ) BasePaymaster(_entryPoint, _owner) {
         invoiceManager = _invoiceManager;
+        crossL2Prover = _crossL2Prover;
         verifyingSigner = _verifyingSigner;
-        settlementAddress = _settlementAddress;
     }
 
     /// @inheritdoc IPaymasterVerifier
     function verifyInvoice(
-        bytes32 invoiceId,
-        IInvoiceManager.InvoiceWithRepayTokens calldata invoice,
-        bytes calldata proof
+        bytes32 _invoiceId,
+        IInvoiceManager.InvoiceWithRepayTokens calldata _invoice,
+        bytes calldata _proof
     ) external virtual override returns (bool) {
-        bytes32 hash = MessageHashUtils.toEthSignedMessageHash(getInvoiceHash(invoice));
-        return verifyingSigner == ECDSA.recover(hash, proof);
+        // Check if the invoiceId corresponds to the invoice
+        bytes32 invoiceId = invoiceManager.getInvoiceId(
+            _invoice.account, _invoice.paymaster, _invoice.nonce, _invoice.sponsorChainId, _invoice.repayTokenInfos
+        );
 
-        // TODO: add polymer CrossL2Prover call
+        if (invoiceId != _invoiceId) return false;
+
+        // _proof is an opaque bytes object to potentialy support different proof systems
+        // This paymasterVerifier supports Polymer proof system
+        (
+            bytes memory receiptIndex,
+            bytes memory receiptRLPEncodedBytes,
+            uint256 logIndex,
+            bytes memory logBytes,
+            bytes memory proof
+        ) = abi.decode(_proof, (bytes, bytes, uint256, bytes, bytes));
+
+        if (!crossL2Prover.validateEvent(receiptIndex, receiptRLPEncodedBytes, logIndex, logBytes, proof)) {
+            return false;
+        }
+
+        // TODO: check if event matches InvoiceCreated(invoiceId)
+        return true;
     }
 
     function withdraw(address token, uint256 amount) external override onlyOwner {
@@ -82,7 +96,7 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         // can't use userOp.hash(), since it contains also the paymasterAndData itself.
         address sender = userOp.getSender();
         (,, bytes calldata signature) = parsePaymasterAndData(userOp.paymasterAndData);
-        (bytes calldata tokenData,) = parsePaymasterSignature(signature);
+        (bytes calldata repayTokenData, bytes calldata sponsorTokenData,) = parsePaymasterSignature(signature);
 
         return keccak256(
             abi.encode(
@@ -91,7 +105,7 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
                 keccak256(userOp.initCode),
                 keccak256(userOp.callData),
                 userOp.accountGasLimits,
-                keccak256(tokenData), // SponsorToken[]
+                keccak256(abi.encode(repayTokenData, sponsorTokenData)), // SponsorToken[]
                 uint256(bytes32(userOp.paymasterAndData[PAYMASTER_VALIDATION_GAS_OFFSET:PAYMASTER_DATA_OFFSET])),
                 userOp.preVerificationGas,
                 userOp.gasFees,
@@ -112,8 +126,11 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         (uint48 validUntil, uint48 validAfter, bytes calldata signature) =
             parsePaymasterAndData(userOp.paymasterAndData);
 
-        (bytes calldata sponsorTokenData, bytes memory paymasterSignature) = parsePaymasterSignature(signature);
+        (bytes calldata repayTokenData, bytes calldata sponsorTokenData, bytes memory paymasterSignature) =
+            parsePaymasterSignature(signature);
+
         (uint256 sponsorTokenLength, SponsorToken[] memory sponsorTokens) = parseSponsorTokenData(sponsorTokenData);
+        (, IInvoiceManager.RepayTokenInfo[] memory repayTokens) = parseRepayTokenData(repayTokenData);
 
         // revoke the approval at the end of userOp
         for (uint256 i = 0; i < sponsorTokenLength; i++) {
@@ -122,19 +139,20 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         }
 
         // check the invoice
-        // bytes32 invoiceId = invoiceManager.getInvoiceId(userOp.sender, address(this), userOp.nonce, block.chainid, repayTokens);
+        bytes32 invoiceId =
+            invoiceManager.getInvoiceId(userOp.getSender(), address(this), userOp.nonce, block.chainid, repayTokens);
         bytes32 hash = MessageHashUtils.toEthSignedMessageHash(getHash(userOp, validUntil, validAfter));
 
         // don't revert on signature failure: return SIG_VALIDATION_FAILED
         if (verifyingSigner != ECDSA.recover(hash, paymasterSignature)) {
             return (
-                abi.encodePacked(userOpHash, sponsorTokenData[0:1 + sponsorTokenLength * 72]),
+                abi.encodePacked(invoiceId, sponsorTokenData[0:1 + sponsorTokenLength * 72]),
                 _packValidationData(true, validUntil, validAfter)
             );
         }
 
         return (
-            abi.encodePacked(userOpHash, sponsorTokenData[0:1 + sponsorTokenLength * 72]),
+            abi.encodePacked(invoiceId, sponsorTokenData[0:1 + sponsorTokenLength * 72]),
             _packValidationData(false, validUntil, validAfter)
         );
     }
@@ -144,7 +162,7 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         virtual
         override
     {
-        bytes32 userOpHash = bytes32(context[:32]);
+        bytes32 invoiceId = bytes32(context[:32]);
         bytes calldata sponsorTokenData = context[32:];
 
         (uint8 sponsorTokenLength, SponsorToken[] memory sponsorTokens) = parseSponsorTokenData(sponsorTokenData);
@@ -152,10 +170,9 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
             SponsorToken memory sponsorToken = sponsorTokens[i];
             IERC20(sponsorToken.token).approve(sponsorToken.spender, 0);
         }
-
-        // TODO: write in settlement contract on `opSucceeded`
+        // TODO: Batch Proving Optimistation -> write in settlement contract on `opSucceeded`
         if (mode == PostOpMode.opSucceeded) {
-            IUserOpSettlement(settlementAddress).push(userOpHash, sponsorTokens);
+            emit InvoiceCreated(invoiceId);
         }
     }
 
@@ -172,19 +189,31 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
     function parsePaymasterSignature(bytes calldata signature)
         public
         pure
-        returns (bytes calldata sponsorTokenData, bytes calldata paymasterSignature)
+        returns (bytes calldata repayTokenData, bytes calldata sponsorTokenData, bytes calldata paymasterSignature)
     {
-        uint8 sponsorTokenLength = uint8(signature[0]);
-        // since sponsorTokenLength is a uint8 (max 255),
-        // if > 2, following `require` statement will revert
-        // sponsorTokenLength * 72 + 65 + 1 > 255
-        // !!! [FAIL: panic: arithmetic underflow or overflow (0x11)] !!!
-        // Avoid check to save gas
-        // TODO: update calculation to support more than 2 sponsor tokens
+        // casting to uint16 to avoid overflow in future calculation
+        uint16 repayTokenLength = uint16(uint8(bytes1(signature[0])));
+        uint16 sponsorTokenLength = uint16(uint8(bytes1(signature[repayTokenLength * 84 + 1])));
 
-        require(signature.length == sponsorTokenLength * 72 + 65 + 1, "CABPaymaster: invalid paymasterAndData");
-        sponsorTokenData = signature[0:1 + sponsorTokenLength * 72];
-        paymasterSignature = signature[sponsorTokenLength * 72 + 1:sponsorTokenLength * 72 + 66];
+        // repayTokenData[]
+        // 1 byte: length
+        // length * 84 bytes: (20 bytes: vault address + 32 bytes chainID + 32 bytes amount)
+
+        // sponsorTokenData[]
+        // 1 byte: length
+        // length * 72 bytes: (20 bytes: token adddress + 20 bytes: spender address + 32 bytes: amount)
+
+        require(
+            signature.length == 1 + repayTokenLength * 84 + 1 + sponsorTokenLength * 72 + 65,
+            "CABPaymaster: invalid paymasterAndData"
+        );
+
+        repayTokenData = signature[0:1 + repayTokenLength * 84];
+        sponsorTokenData = signature[1 + repayTokenLength * 84:1 + repayTokenLength * 84 + 1 + sponsorTokenLength * 72];
+        paymasterSignature = signature[
+            1 + repayTokenLength * 84 + 1 + sponsorTokenLength * 72:
+                1 + repayTokenLength * 84 + 1 + sponsorTokenLength * 72 + 65
+        ];
     }
 
     function parseSponsorTokenData(bytes calldata sponsorTokenData)
@@ -196,9 +225,7 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
 
         // 1 byte: length
         // length * 72 bytes: (20 bytes: token adddress + 20 bytes: spender address + 32 bytes: amount)
-        require(
-            sponsorTokenData.length == 1 + sponsorTokenLength * (72), "CABPaymaster: invalid sponsorTokenData length"
-        );
+        require(sponsorTokenData.length == 1 + sponsorTokenLength * 72, "CABPaymaster: invalid sponsorTokenData length");
 
         sponsorTokens = new SponsorToken[](sponsorTokenLength);
         for (uint256 i = 0; i < uint256(sponsorTokenLength);) {
@@ -208,6 +235,32 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
             uint256 amount = uint256(bytes32(sponsorTokenData[offset + 40:offset + 72]));
 
             sponsorTokens[i] = SponsorToken(token, spender, amount);
+
+            unchecked {
+                i++;
+            }
+        }
+    }
+
+    function parseRepayTokenData(bytes calldata repayTokenData)
+        public
+        pure
+        returns (uint8 repayTokenLength, IInvoiceManager.RepayTokenInfo[] memory repayTokens)
+    {
+        repayTokenLength = uint8(bytes1(repayTokenData[0]));
+
+        // 1 byte: length
+        // length * 84 bytes: (20 bytes: vault address + 32 bytes chainID + 32 bytes amount)
+        require(repayTokenData.length == 1 + repayTokenLength * 84, "CABPaymaster: invalid repayTokenData length");
+
+        repayTokens = new IInvoiceManager.RepayTokenInfo[](repayTokenLength);
+        for (uint256 i = 0; i < uint256(repayTokenLength);) {
+            uint256 offset = 1 + i * 84;
+            address vault = address(bytes20(repayTokenData[offset:offset + 20]));
+            uint256 chainId = uint256(bytes32(repayTokenData[offset + 20:offset + 52]));
+            uint256 amount = uint256(bytes32(repayTokenData[offset + 52:offset + 84]));
+
+            repayTokens[i] = IInvoiceManager.RepayTokenInfo(IVault(vault), amount, chainId);
 
             unchecked {
                 i++;

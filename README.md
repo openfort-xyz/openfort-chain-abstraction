@@ -1,27 +1,33 @@
-# Openfort Ecosystem abstraction
+# Openfort Ecosystem Abstraction
 
 ## Overview
-Ecosystems serve as parent entities for groups of apps operating across different blockchains. Openfort [**ecosystem wallets**](https://www.openfort.xyz/docs/guides/ecosystem) enable seamless interoperability between applications, allowing ecosystems to design their ideal, unified wallet experience. The next evolution is consolidating user liquidity across apps, providing a single, unified dollar balance instantly spendable across the ecosystem. This vision will be powered by Openfort's advanced chain abstraction implementation based on [MagicSpend++](https://ethresear.ch/t/magicspend-spend-now-debit-later/19678/9) hosted in this repository. With this setup, ecosystems have the opportunitiy to become Liquidity Providers (LPs) for their users, sharing with them the value that would otherwise be captured by solvers/fillers.
+Ecosystems serve as parent entities for groups of apps operating across different blockchains. Openfort [**ecosystem wallets**](https://www.openfort.xyz/docs/guides/ecosystem) enable seamless interoperability between applications, allowing ecosystems to design their ideal, unified wallet experience. The next evolution is consolidating user liquidity across apps, providing a single, unified balance instantly spendable across the ecosystem. This vision will be powered by Openfort's chain abstraction implementation based on [MagicSpend++](https://ethresear.ch/t/magicspend-spend-now-debit-later/19678/9) hosted in this repository.
+
+With this setup, ecosystems can deploy tailor-made 4337 chain abstraction infrastructure.
+They become Liquidity Providers (LPs) for their users, sharing with them the value that would otherwise have been captured by solvers/fillers.
+
 
 You will find *at least* the following contracts:
-* time-locked Vault and related interfaces
-* Chain Abstraction Paymaster and related interfaces
-* Invoice Manage
+* Time-locked Vault
 * Vault Manager
+* Chain Abstraction Paymaster
+* Invoice Manager
 
-Any additional contracts will be added to the repository as needed...
-
-## Architecture
+## System Architecture
 
 ![architecture](./assets/archi.jpg)
 
-## Ecosystem Chain Abstraction Settings: accessible fromOpenfort Dashboard (product specs)
+## Zoom on UserOp paymasterAndData
+
+![paymasterAndData](./assets/paymasterAndData.png)
+
+## Ecosystem Chain Abstraction Settings: accessible fromOpenfort Dashboard
 
 #### Vault
-- Locking period
-- ERC20 ticker? (depends if we decide that vault shares are ERC20)
-- Supported chains
-- Supported assets (each asset must have a correspondence in dollars)
+- Define locking period
+- Set ERC20 ticker? (depends if we decide that vault shares are ERC20)
+- Deploy on any chain
+- Define any ERC20 / native asset (each asset must have a correspondence in dollars)
 
 #### Auto-fund amount
 Ecosystems can choose to pre-fund their users’ accounts to reduce friction.
@@ -32,33 +38,27 @@ _Note:_ This "locking" can be simplified into a **SEND** transaction from an EOA
 **Q:** Should the ecosystem remain the owner of the funds?
 
 #### Paymaster
-* Set/update the Paymaster owner address (the owner private key _MUST_ be owned by the ecosystem).
+* Set/update the Paymaster owner address (ecosystem *MUST* own the Paymaster).
 * Fund/withdraw Paymaster balance (Openfort crafts the transaction, but the ecosystem owner _MUST_ sign it).
 * Set a webhook to receive alerts when the Paymaster balance falls below a certain threshold.
-	The Paymaster fronts the funds on the destination chain for the user if they _HAVE_ enough locked balance (checked by the Paymaster Service). The Paymaster contract will then be reimbursed on the source chain(s). Ni1o: user has 100@A, 50@B, and spends 130@C
+	The Paymaster fronts the funds on the destination chain for the user if they _HAVE_ enough locked balance (checked by Openfort Paymaster Service). The Paymaster contract will then be reimbursed on the source chain(s). Ni1o: user has 100@A, 50@B, and spends 130@C
 
-Trust Assumption:
-* ATM, user *MUST* trust owner of `verifyingSigner` address to call `repay` from `InvoiceManager` only after the Paymaster fronted the funds. 🚩 🚩 🚩 
-    - Possible solutions: 
-        -  write invoice on a settlement contract from Paymaster `_postOp` on `opSucceeded` and leverage socket DL to call the invoice manager on the source chain and get reimbursed.
-        - same as above but with Polymer Prover. (cf. architecture above) => Message Passing vs cross-l2 proving (optimism chains only)
-* Ecosystems *MUST* trust Openfort's Paymaster Service to verify user-locked balances and append its special signature to the `paymasterAndData` userOperation field.
+Trust assumptions:
+
+* The system relies on cross-L2 execution proofs enabled by Polymer, eliminating the need for Users to trust Openfort or the Ecosystem. To recover funds locked in source chain vaults on behalf of the ecosystem, Openfort must prove the execution of the User Operation (UserOP) on the remote chain. There is no refund on source chain without the corresponding remote chain execution proof.
 
 
 ### Chain Abstraction Activation process
 
 *for each* blockchain supported by the ecosystem:
 * Deploy a custom ERC20 with ecosystem ticker representing the vaults' common "shares" (optional, share be represented as uint256 in the Vault implementation)
-* Deploy one time-locked Vault implementation per supported ERC20:
-   Here is some inspiration:
-    [ERC-4626 Tokenize-Vaults](https://eips.ethereum.org/EIPS/eip-4626)
-    [ERC-7575 Multi-Asset vaults](https://eips.ethereum.org/EIPS/eip-7575)
-    [example of Time-locked vault implementation](https://github.com/superical/time-lock-vault/tree/main)
+* Deploy one time-locked Vault implementation per supported ERC20, here is some inspiration:
+    - [ERC-4626 Tokenize-Vaults](https://eips.ethereum.org/EIPS/eip-4626)
+    - [ERC-7575 Multi-Asset vaults](https://eips.ethereum.org/EIPS/eip-7575)
 * Deploy Vault Manager
 * Deploy Invoice Manager
 * Deploy the Chain Abstraction Paymaster
 
 
 Bonus:
-* The locked balance can technically generate a yield for users. Ethereum offers numerous DeFi primitives with instant liquidity access. Openfort and ecosystems could leverage this argument to incentivize users to lock funds.
-
+* The locked balance can technically generate a yield for users. Ethereum offers numerous DeFi primitives with instant liquidity access.
