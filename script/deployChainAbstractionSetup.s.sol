@@ -12,7 +12,8 @@ import {BaseVault} from "../src/vaults/BaseVault.sol";
 import {VaultManager} from "../src/vaults/VaultManager.sol";
 import {CABPaymaster} from "../src/paymasters/CABPaymaster.sol";
 import {InvoiceManager} from "../src/core/InvoiceManager.sol";
-import {UserOpSettlement} from "../src/settlement/UserOpSettlement.sol";
+
+import {ICrossL2Prover} from "@vibc-core-smart-contracts/contracts/interfaces/ICrossL2Prover.sol";
 
 // forge script script/deployChainAbstractionSetup.s.sol:DeployChainAbstractionSetup "[0xusdc, 0xusdt]" --sig "run(address[])" --via-ir --rpc-url=127.0.0.1:854
 
@@ -20,6 +21,7 @@ contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint {
     uint256 internal deployerPrivKey = vm.envUint("PK_DEPLOYER");
     uint256 internal withdrawLockBlock = vm.envUint("WITHDRAW_LOCK_BLOCK");
     address internal deployer = vm.addr(deployerPrivKey);
+    address internal crossL2Prover = vm.envAddress("CROSS_L2_PROVER");
     address internal owner = vm.envAddress("OWNER");
     address internal verifyingSigner = vm.envAddress("VERIFYING_SIGNER");
     bytes32 internal versionSalt = vm.envBytes32("VERSION_SALT");
@@ -51,6 +53,7 @@ contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint {
                 )
             )
         );
+
         invoiceManager.initialize(owner, IVaultManager(address(vaultManager)));
 
         for (uint256 i = 0; i < tokens.length; i++) {
@@ -73,17 +76,12 @@ contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint {
         }
 
         IEntryPoint entryPoint = checkOrDeployEntryPoint();
-        UserOpSettlement settlement = UserOpSettlement(
-            payable(new UpgradeableOpenfortProxy{salt: versionSalt}(address(new UserOpSettlement()), ""))
-        );
 
-        console.log("Settlement Address", address(settlement));
         CABPaymaster paymaster = new CABPaymaster{salt: versionSalt}(
-            entryPoint, IInvoiceManager(address(invoiceManager)), verifyingSigner, owner, address(settlement)
+            entryPoint, IInvoiceManager(address(invoiceManager)), ICrossL2Prover(crossL2Prover), verifyingSigner, owner
         );
 
         console.log("Paymaster Address", address(paymaster));
-        settlement.initialize(owner, address(paymaster));
         vm.stopBroadcast();
     }
 }
