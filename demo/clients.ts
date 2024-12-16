@@ -5,14 +5,10 @@ import {
   PublicClient,
   WalletClient,
 } from "viem";
-import { createBundlerClient } from "viem/account-abstraction";
-import { privateKeyToAccount } from "viem/accounts";
-import { baseSepolia, optimism, optimismSepolia } from "viem/chains";
-import { supportedChain } from "./constants";
-
-const ownerAccount = privateKeyToAccount(
-  process.env.OWNER_PRIVATE_KEY as `0x${string}`,
-);
+import { BundlerClient, createBundlerClient } from "viem/account-abstraction";
+import { baseSepolia, optimismSepolia } from "viem/chains";
+import { ownerAccount, supportedChain } from "./constants";
+import { getPaymasterActions } from "./paymaster";
 
 export const optimismPublicClient = createPublicClient({
   chain: optimismSepolia,
@@ -23,6 +19,7 @@ export const baseSepoliaPublicClient = createPublicClient({
   chain: baseSepolia,
   transport: http(),
 });
+
 
 export const baseSepoliaWalletClient = createWalletClient({
   account: ownerAccount,
@@ -38,12 +35,14 @@ export const optimismWalletClient = createWalletClient({
 
 export const baseSepoliaBundlerClient = createBundlerClient({
   client: baseSepoliaPublicClient,
-  transport: http("http://localhost:4337"),
+  paymaster: getPaymasterActions("base"),
+  transport: http(`http://localhost:8080/bundler/${baseSepolia.id}`),
 });
 
 export const optimismBundlerClient = createBundlerClient({
   client: optimismPublicClient,
-  transport: http("http://localhost:4337"),
+  paymaster: getPaymasterActions("optimism"),
+  transport: http(`http://localhost:8080/bundler/${optimismSepolia.id}`),
 });
 
 export const walletClients: Record<supportedChain, WalletClient> = {
@@ -54,4 +53,9 @@ export const walletClients: Record<supportedChain, WalletClient> = {
 export const publicClients: Record<supportedChain, PublicClient> = {
   optimism: optimismPublicClient as PublicClient,
   base: baseSepoliaPublicClient as PublicClient,
+};
+
+export const bundlerClients: Record<supportedChain, BundlerClient> = {
+  optimism: optimismBundlerClient as BundlerClient,
+  base: baseSepoliaBundlerClient as BundlerClient,
 };

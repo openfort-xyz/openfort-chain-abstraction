@@ -1,5 +1,14 @@
+import { privateKeyToAccount } from "viem/accounts";
+
 // Add proper type definition
 export type supportedChain = "optimism" | "base";
+
+export const paymasterVerifier = privateKeyToAccount(
+    process.env.PAYMASTER_VERIFIER_PRIVATE_KEY as `0x${string}`,
+  );
+export const ownerAccount = privateKeyToAccount(
+    process.env.OWNER_PRIVATE_KEY as `0x${string}`,
+  );
 
 export const openfortAccountFactory =
   "0xCB71E008B9062bb7aBd558816f8135Ef2caB576F";
@@ -29,6 +38,22 @@ export const tokenB = {
   base: "0xa9a0179e045cF39C5F4d914583dc3648DfBDeeF1",
   optimism: "0xd926e338e047aF920F59390fF98A3114CCDcab4a",
 };
+
+export const demoNFTs = {
+  base: "0xD129bda7CE0888d7Fd66ff46e7577c96984d678f",
+  optimism: "0x9999999999999999999999999999999999999999",
+};
+
+export const vaultA = {
+  base: "0x2e49f4faf533060c33Da040B28cC7297C7EE2770",
+  optimism: "0x8e2048c85Eae2a4443408C284221B33e61906463",
+};
+
+export const chainIDs = {
+  base: 8453,
+  optimism: 11155420,
+};
+
 
 export function isValidChain(chain: string): chain is supportedChain {
   return chain === "optimism" || chain === "base";

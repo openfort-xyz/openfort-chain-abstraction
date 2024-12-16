@@ -1,6 +1,7 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.20;
 
+import {ERC721URIStorage} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
@@ -10,7 +11,7 @@ import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 /// @title DemoNFT
 /// @notice
 /// @dev
-contract DemoNFT is Ownable, AccessControl, ERC721 {
+contract DemoNFT is Ownable, AccessControl, ERC721URIStorage {
     using Strings for uint256;
 
     uint256 public tokenIdCounter;
@@ -21,8 +22,6 @@ contract DemoNFT is Ownable, AccessControl, ERC721 {
     event PaymentTokenSet(address indexed paymentToken);
     event MintPriceSet(uint256 indexed mintPrice);
     event BaseURISet(string indexed baseURI);
-
-    mapping(uint256 => string) public tokenURIs;
 
     constructor(address _owner, string memory _baseTokenURI, address _paymentToken, uint256 _mintPrice)
         Ownable(_owner)
@@ -40,12 +39,6 @@ contract DemoNFT is Ownable, AccessControl, ERC721 {
 
     function _baseURI() internal view override returns (string memory) {
         return baseTokenURI;
-    }
-
-    function tokenURI(uint256 tokenId) public view override returns (string memory) {
-        _requireOwned(tokenId);
-        string memory baseURI = _baseURI();
-        return bytes(baseURI).length > 0 ? string.concat(baseURI, tokenId.toString()) : "";
     }
 
     ////////////////////////////////////////////////////////////////////////
@@ -92,7 +85,7 @@ contract DemoNFT is Ownable, AccessControl, ERC721 {
         }
         uint256 newItemId = tokenIdCounter;
         _safeMint(msg.sender, newItemId);
-        tokenURIs[newItemId] = _tokenURI;
+        _setTokenURI(newItemId, _tokenURI);
         return newItemId;
     }
 
@@ -100,7 +93,7 @@ contract DemoNFT is Ownable, AccessControl, ERC721 {
     /// Interface functions
     ////////////////////////////////////////////////////////////////////////
 
-    function supportsInterface(bytes4 interfaceId) public view override(ERC721, AccessControl) returns (bool) {
-        return ERC721.supportsInterface(interfaceId) || AccessControl.supportsInterface(interfaceId);
+    function supportsInterface(bytes4 interfaceId) public view override(ERC721URIStorage, AccessControl) returns (bool) {
+        return ERC721URIStorage.supportsInterface(interfaceId) || AccessControl.supportsInterface(interfaceId);
     }
 }
