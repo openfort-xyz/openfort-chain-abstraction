@@ -93,7 +93,12 @@ contract DemoNFT is Ownable, AccessControl, ERC721URIStorage {
     /// Interface functions
     ////////////////////////////////////////////////////////////////////////
 
-    function supportsInterface(bytes4 interfaceId) public view override(ERC721URIStorage, AccessControl) returns (bool) {
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(ERC721URIStorage, AccessControl)
+        returns (bool)
+    {
         return ERC721URIStorage.supportsInterface(interfaceId) || AccessControl.supportsInterface(interfaceId);
     }
 }

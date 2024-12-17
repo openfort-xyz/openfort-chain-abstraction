@@ -15,7 +15,7 @@ export const openfortAccountFactory =
 export const owner = "0x9590Ed0C18190a310f4e93CAccc4CC17270bED40";
 
 export const paymasters = {
-  base: "0xA1D5C22d20C41998026e32dEE0eaF9cbC56f7d6E",
+  base: "0x097a1ACDa7452584dB79d369E4822a63373B5C32",
   optimism: "0x7926E12044F7f29150F5250B1A335a145298308d",
 };
 

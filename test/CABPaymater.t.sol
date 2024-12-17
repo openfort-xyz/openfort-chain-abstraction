@@ -20,6 +20,7 @@ import {ICrossL2Prover} from "@vibc-core-smart-contracts/contracts/interfaces/IC
 
 contract CABPaymasterTest is Test {
     uint256 immutable BASE_CHAIN_ID = 8453;
+    uint256 immutable OPTIMISM_CHAIN_ID = 11155420;
     uint256 immutable PAYMSTER_BASE_MOCK_ERC20_BALANCE = 100000;
 
     CABPaymaster public paymaster;
@@ -85,8 +86,7 @@ contract CABPaymasterTest is Test {
     function getEncodedSponsorTokens(uint8 len) internal returns (bytes memory encodedSponsorToken) {
         IPaymasterVerifier.SponsorToken[] memory sponsorTokens = new IPaymasterVerifier.SponsorToken[](len);
         for (uint8 i = 0; i < len; i++) {
-            sponsorTokens[i] =
-                IPaymasterVerifier.SponsorToken({token: address(mockERC20), spender: rekt, amount: 10000});
+            sponsorTokens[i] = IPaymasterVerifier.SponsorToken({token: address(mockERC20), spender: rekt, amount: 500});
             encodedSponsorToken = bytes.concat(
                 encodedSponsorToken,
                 bytes20(sponsorTokens[i].token),
@@ -101,7 +101,7 @@ contract CABPaymasterTest is Test {
         IInvoiceManager.RepayTokenInfo[] memory repayTokens = new IInvoiceManager.RepayTokenInfo[](len);
         for (uint8 i = 0; i < len; i++) {
             repayTokens[i] =
-                IInvoiceManager.RepayTokenInfo({vault: openfortVault, amount: 10000, chainId: BASE_CHAIN_ID});
+                IInvoiceManager.RepayTokenInfo({vault: openfortVault, amount: 500, chainId: OPTIMISM_CHAIN_ID});
             encodedRepayToken = bytes.concat(
                 encodedRepayToken,
                 bytes20(address(repayTokens[i].vault)),
@@ -114,8 +114,9 @@ contract CABPaymasterTest is Test {
 
     function testValidateUserOp() public {
         vm.chainId(BASE_CHAIN_ID);
-        bytes memory sponsorTokensBytes = getEncodedSponsorTokens(2);
-        bytes memory repayTokensBytes = getEncodedRepayTokens(2);
+        bytes memory sponsorTokensBytes = getEncodedSponsorTokens(1);
+        bytes memory repayTokensBytes = getEncodedRepayTokens(1);
+
         uint48 validUntil = 1732810044 + 1000;
         uint48 validAfter = 1732810044;
         uint128 preVerificationGas = 1e5;
@@ -133,7 +134,7 @@ contract CABPaymasterTest is Test {
 
         PackedUserOperation memory userOp = PackedUserOperation({
             sender: rekt,
-            nonce: 0,
+            nonce: 31994562304018791559173496635392,
             initCode: "",
             callData: "",
             accountGasLimits: bytes32(uint256(1e18)),
@@ -143,6 +144,25 @@ contract CABPaymasterTest is Test {
             signature: ""
         });
 
+        console.log("encodedData");
+        console.logBytes(
+            abi.encode(
+                userOp.sender,
+                userOp.nonce,
+                keccak256(userOp.initCode),
+                keccak256(userOp.callData),
+                userOp.accountGasLimits,
+                keccak256(abi.encode(repayTokensBytes, sponsorTokensBytes)),
+                bytes32(abi.encodePacked(preVerificationGas, postVerificationGas)),
+                userOp.preVerificationGas,
+                userOp.gasFees,
+                block.chainid,
+                address(paymaster),
+                validUntil,
+                validAfter
+            )
+        );
+
         bytes32 userOpHash = keccak256(
             abi.encode(
                 userOp.sender,
@@ -150,8 +170,8 @@ contract CABPaymasterTest is Test {
                 keccak256(userOp.initCode),
                 keccak256(userOp.callData),
                 userOp.accountGasLimits,
-                keccak256(abi.encode(sponsorTokensBytes, repayTokensBytes)),
-                uint256(bytes32(abi.encodePacked(preVerificationGas, postVerificationGas))),
+                keccak256(abi.encode(repayTokensBytes, sponsorTokensBytes)),
+                bytes32(abi.encodePacked(preVerificationGas, postVerificationGas)),
                 userOp.preVerificationGas,
                 userOp.gasFees,
                 block.chainid,
@@ -165,7 +185,17 @@ contract CABPaymasterTest is Test {
             vm.sign(verifyingSignerPrivateKey, MessageHashUtils.toEthSignedMessageHash(userOpHash));
         // Append signature to paymasterAndData
         bytes memory signature = abi.encodePacked(r, s, v);
+
         userOp.paymasterAndData = abi.encodePacked(userOp.paymasterAndData, signature);
+
+        console.log("userOp.paymasterAndData");
+        console.logBytes(userOp.paymasterAndData);
+
+        console.log("address paymaster", address(paymaster));
+
+        // DEMO paymasterAndData with sponsorToken address replaced by MockToken address to pass the approve in the paymaster
+        // userOp.paymasterAndData = hex"A1D5C22d20C41998026e32dEE0eaF9cbC56f7d6E00000000000000000000000000000000000000000000000000000000000186a0000001363a9600000126f856018e2048c85Eae2a4443408C284221B33e6190646300000000000000000000000000000000000000000000000000000000000001f40000000000000000000000000000000000000000000000000000000000aa37dc01a0Cb889707d426A7A386870A03bc70d1b069759812c3f9EA0D2b4bb098216C8456BEc7748982081900000000000000000000000000000000000000000000000000000000000001f459644ed81cb971f32335b3b06c6114ddebda7b11fa5b721121392a7b9cfcc9ed05f0cbf5bf814ca8bd7e72ac661aea62323119b190c5493ee3cd5d48d1f262e61c";
+
         vm.startPrank(address(entryPoint));
         (bytes memory context, uint256 validationData) =
             paymaster.validatePaymasterUserOp(userOp, userOpHash, type(uint256).max);

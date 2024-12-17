@@ -39,6 +39,12 @@ export const baseSepoliaBundlerClient = createBundlerClient({
   transport: http(`http://localhost:8080/bundler/${baseSepolia.id}`),
 });
 
+// export const baseSepoliaBundlerClient = createBundlerClient({
+//   client: baseSepoliaPublicClient,
+//   paymaster: getPaymasterActions("base"),
+//   transport: http(`https://api.pimlico.io/v2/base-sepolia/rpc?apikey=pim_QZqpZqQWSfNVFFhLxMRqDz`),
+// });
+
 export const optimismBundlerClient = createBundlerClient({
   client: optimismPublicClient,
   paymaster: getPaymasterActions("optimism"),

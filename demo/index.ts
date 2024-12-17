@@ -133,7 +133,8 @@ program
           functionName: "mint",
           args: [account],
         }
-      ]
+      ],
+      verificationGasLimit: 10000000n,
     });
 
     const userOpHash = await getUserOperationHash({
