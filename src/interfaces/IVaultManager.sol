@@ -74,8 +74,7 @@ interface IVaultManager {
     event DepositToYield(
         address indexed account,
         IYieldVault indexed vault,
-        uint256 shares,
-        uint256 yieldShares
+        uint256 shares
     );
 
     /// @notice Struct to represent the withdrawal request.
@@ -135,10 +134,7 @@ interface IVaultManager {
      * @return shares The amount of shares rewarded to the depositer.
      */
     function depositToYield(
-        IERC20 token,
-        IYieldVault vault,
-        uint256 amount,
-        bool isYield
+        IYieldVault vault
     ) external returns (uint256, uint256);
 
     /**
