@@ -8,6 +8,7 @@ import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.s
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+
 /**
  * @title Implementation of the IVault interface.
  */
@@ -37,7 +38,10 @@ contract BaseVault is UUPSUpgradeable, OwnableUpgradeable, IVault {
     uint256 public totalShares;
 
     modifier onlyVaultManager() {
-        require(msg.sender == address(vaultManager), "Vault: caller is not the VaultManager");
+        require(
+            msg.sender == address(vaultManager),
+            "Vault: caller is not the VaultManager"
+        );
         _;
     }
 
@@ -45,7 +49,10 @@ contract BaseVault is UUPSUpgradeable, OwnableUpgradeable, IVault {
         _disableInitializers();
     }
 
-    function initialize(IVaultManager _vaultManager, IERC20 _underlyingToken) public virtual initializer {
+    function initialize(
+        IVaultManager _vaultManager,
+        IERC20 _underlyingToken
+    ) public virtual initializer {
         vaultManager = _vaultManager;
         _initializeBase(_underlyingToken);
     }
@@ -53,18 +60,21 @@ contract BaseVault is UUPSUpgradeable, OwnableUpgradeable, IVault {
     function _authorizeUpgrade(address) internal override onlyOwner {}
 
     /// @inheritdoc IVault
-    function deposit(IERC20 token, uint256 amount, bool isYield)
-        external
-        virtual
-        override
-        onlyVaultManager
-        returns (uint256)
-    {
+    function deposit(
+        IERC20 token,
+        uint256 amount,
+        bool isYield
+    ) external virtual override onlyVaultManager returns (uint256) {
         _beforeDeposit(token, amount, isYield);
 
         uint256 priorTotalShares = totalShares;
 
-        uint256 newShares = _previewDeposit(priorTotalShares, token, amount, isYield);
+        uint256 newShares = _previewDeposit(
+            priorTotalShares,
+            token,
+            amount,
+            isYield
+        );
 
         require(newShares != 0, "Vault: newShare cannot be zero");
         totalShares = priorTotalShares + newShares;
@@ -75,22 +85,25 @@ contract BaseVault is UUPSUpgradeable, OwnableUpgradeable, IVault {
     }
 
     /// @inheritdoc IVault
-    function withdraw(IERC20 token, uint256 amountShares, address recipient)
-        external
-        virtual
-        override
-        onlyVaultManager
-    {
+    function withdraw(
+        IERC20 token,
+        uint256 amountShares,
+        address recipient
+    ) external virtual override onlyVaultManager {
         _beforeWithdraw(token, amountShares, recipient);
 
         uint256 priorTotalShares = totalShares;
 
-        require(amountShares <= priorTotalShares, "Vault: amount exceeds total shares");
+        require(
+            amountShares <= priorTotalShares,
+            "Vault: amount exceeds total shares"
+        );
 
         uint256 virtualPriorTotalShares = priorTotalShares + SHARES_OFFSET;
         uint256 virtualTokenBalance = totalAssets() + BALANCE_OFFSET;
 
-        uint256 amountToSend = (amountShares * virtualTokenBalance) / virtualPriorTotalShares;
+        uint256 amountToSend = (amountShares * virtualTokenBalance) /
+            virtualPriorTotalShares;
 
         totalShares = priorTotalShares - amountShares;
 
@@ -98,7 +111,9 @@ contract BaseVault is UUPSUpgradeable, OwnableUpgradeable, IVault {
     }
 
     /// @inheritdoc IVault
-    function sharesToUnderlying(uint256 amountShares) public view virtual override returns (uint256) {
+    function sharesToUnderlying(
+        uint256 amountShares
+    ) public view virtual override returns (uint256) {
         uint256 virtualTotalShares = totalShares + SHARES_OFFSET;
         uint256 virtualTokenBalance = totalAssets() + BALANCE_OFFSET;
 
@@ -106,7 +121,9 @@ contract BaseVault is UUPSUpgradeable, OwnableUpgradeable, IVault {
     }
 
     /// @inheritdoc IVault
-    function underlyingToShares(uint256 amountUnderlying) public view virtual override returns (uint256) {
+    function underlyingToShares(
+        uint256 amountUnderlying
+    ) public view virtual override returns (uint256) {
         uint256 virtualTotalShares = totalShares + SHARES_OFFSET;
         uint256 virtualTokenBalance = totalAssets() + BALANCE_OFFSET;
 
@@ -114,12 +131,16 @@ contract BaseVault is UUPSUpgradeable, OwnableUpgradeable, IVault {
     }
 
     /// @inheritdoc IVault
-    function accountShares(address account) public view virtual override returns (uint256) {
+    function accountShares(
+        address account
+    ) public view virtual override returns (uint256) {
         return vaultManager.vaultShares(account, IVault(address(this)));
     }
 
     /// @inheritdoc IVault
-    function accountUnderlying(address account) public view virtual override returns (uint256) {
+    function accountUnderlying(
+        address account
+    ) public view virtual override returns (uint256) {
         return sharesToUnderlying(accountShares(account));
     }
 
@@ -128,7 +149,9 @@ contract BaseVault is UUPSUpgradeable, OwnableUpgradeable, IVault {
         return _totalAssets();
     }
 
-    function _initializeBase(IERC20 _underlyingToken) internal onlyInitializing {
+    function _initializeBase(
+        IERC20 _underlyingToken
+    ) internal onlyInitializing {
         underlyingToken = _underlyingToken;
     }
 
@@ -143,16 +166,18 @@ contract BaseVault is UUPSUpgradeable, OwnableUpgradeable, IVault {
      * @param amount The amount of token to deposit.
      * @param isYield The flag to indicate if the deposit is in yield mode.
      */
-    function _previewDeposit(uint256 priorTotalShares, IERC20 token, uint256 amount, bool isYield)
-        internal
-        virtual
-        returns (uint256)
-    {
+    function _previewDeposit(
+        uint256 priorTotalShares,
+        IERC20 token,
+        uint256 amount,
+        bool isYield
+    ) internal virtual returns (uint256) {
         uint256 virtualShareAmount = priorTotalShares + SHARES_OFFSET;
         uint256 virtualTokenBalance = totalAssets() + BALANCE_OFFSET;
 
         uint256 virtualPriorTokenBalance = virtualTokenBalance - amount;
-        uint256 newShares = (amount * virtualShareAmount) / virtualPriorTokenBalance;
+        uint256 newShares = (amount * virtualShareAmount) /
+            virtualPriorTokenBalance;
 
         return newShares;
     }
@@ -163,8 +188,15 @@ contract BaseVault is UUPSUpgradeable, OwnableUpgradeable, IVault {
      * @param amount The amount of the token to be deposited. This parameter is not used in the function but included for interface compatibility.
      * @param isYield A flag to indicate if the deposit is in yield mode. This parameter is not used in the function but included for interface compatibility.
      */
-    function _beforeDeposit(IERC20 token, uint256 amount, bool isYield) internal virtual {
-        require(token == underlyingToken, "Vault: token is not the underlying token");
+    function _beforeDeposit(
+        IERC20 token,
+        uint256 amount,
+        bool isYield
+    ) internal virtual {
+        require(
+            token == underlyingToken,
+            "Vault: token is not the underlying token"
+        );
     }
 
     /**
@@ -173,7 +205,11 @@ contract BaseVault is UUPSUpgradeable, OwnableUpgradeable, IVault {
      * @param amount The amount of the token to be deposited.
      * @param isYield A flag to indicate if the deposit is in yield mode.
      */
-    function _afterDeposit(IERC20 token, uint256 amount, bool isYield) internal virtual {
+    function _afterDeposit(
+        IERC20 token,
+        uint256 amount,
+        bool isYield
+    ) internal virtual {
         // To be overridden by the derived contracts.
     }
 
@@ -183,8 +219,15 @@ contract BaseVault is UUPSUpgradeable, OwnableUpgradeable, IVault {
      * @param amount The amount of the token to be withdrawn.
      * @param recipient The address to send the withdrawn tokens to.
      */
-    function _beforeWithdraw(IERC20 token, uint256 amount, address recipient) internal virtual {
-        require(token == underlyingToken, "Vault: token is not the underlying token");
+    function _beforeWithdraw(
+        IERC20 token,
+        uint256 amount,
+        address recipient
+    ) internal virtual {
+        require(
+            token == underlyingToken,
+            "Vault: token is not the underlying token"
+        );
     }
 
     /**
@@ -193,7 +236,11 @@ contract BaseVault is UUPSUpgradeable, OwnableUpgradeable, IVault {
      * @param amount The amount of the token to be withdrawn.
      * @param recipient The address to send the withdrawn tokens to.
      */
-    function _afterWithdraw(IERC20 token, uint256 amount, address recipient) internal virtual {
+    function _afterWithdraw(
+        IERC20 token,
+        uint256 amount,
+        address recipient
+    ) internal virtual {
         token.safeTransfer(recipient, amount);
     }
 }
