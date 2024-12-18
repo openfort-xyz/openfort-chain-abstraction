@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IYieldVault} from "../interfaces/IYieldVault.sol";
 import {IVault} from "../interfaces/IVault.sol";
 import {BaseVault} from "./BaseVault.sol";
 import {IVaultManager} from "../interfaces/IVaultManager.sol";
@@ -16,7 +15,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 // import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
 
-contract AaveVault is BaseVault, IYieldVault {
+contract AaveVault is BaseVault {
     using SafeERC20 for IERC20;
     // Aave necessary libraries
     IL2Pool public aavePool;
@@ -45,26 +44,6 @@ contract AaveVault is BaseVault, IYieldVault {
         // dataProvider = _dataProvider;
         // Initialize BaseVault
         super.initialize(_vaultManager, _underlyingToken);
-    }
-
-    function depositToYield(
-        IERC20 token,
-        uint256 amount,
-        bool isYield
-    ) external override onlyVaultManager returns (uint256 newShares) {
-        //     _beforeDeposit(token, amount, isYield);
-        //     uint256 priorTotalShares = totalShares;
-        //     newShares = _previewDeposit(priorTotalShares, token, amount, isYield);
-        //     require(newShares != 0, "Vault: newShare cannot be zero");
-        //     totalShares = priorTotalShares + newShares;
-        // underlyingToken.approve(address(aavePool), amount);
-        // bytes32 args = l2Encoder.encodeSupplyParams(
-        //     address(underlyingToken),
-        //     amount,
-        //     0
-        // );
-        // aavePool.supply(args);
-        //     return newShares;
     }
 
     function _afterDeposit(
