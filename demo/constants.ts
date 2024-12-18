@@ -3,6 +3,8 @@ import { privateKeyToAccount } from "viem/accounts";
 // Add proper type definition
 export type supportedChain = "optimism" | "base";
 
+export const V7SimpleAccountFactoryAddress = "0x91E60e0613810449d098b0b5Ec8b51A0FE8c8985";
+
 export const paymasterVerifier = privateKeyToAccount(
     process.env.PAYMASTER_VERIFIER_PRIVATE_KEY as `0x${string}`,
   );
@@ -10,12 +12,10 @@ export const ownerAccount = privateKeyToAccount(
     process.env.OWNER_PRIVATE_KEY as `0x${string}`,
   );
 
-export const openfortAccountFactory =
-  "0xCB71E008B9062bb7aBd558816f8135Ef2caB576F";
-export const owner = "0x9590Ed0C18190a310f4e93CAccc4CC17270bED40";
+
 
 export const paymasters = {
-  base: "0x097a1ACDa7452584dB79d369E4822a63373B5C32",
+  base: "0xF6e64504ed56ec2725CDd0b3C1b23626D66008A2",
   optimism: "0x7926E12044F7f29150F5250B1A335a145298308d",
 };
 

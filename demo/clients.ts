@@ -33,17 +33,25 @@ export const optimismWalletClient = createWalletClient({
   transport: http(),
 });
 
+// export const baseSepoliaBundlerClient = createBundlerClient({
+//   client: baseSepoliaPublicClient,
+//   paymaster: getPaymasterActions("base"),
+//   transport: http(`http://localhost:8080/bundler/${baseSepolia.id}`),
+// });
+
 export const baseSepoliaBundlerClient = createBundlerClient({
   client: baseSepoliaPublicClient,
   paymaster: getPaymasterActions("base"),
-  transport: http(`http://localhost:8080/bundler/${baseSepolia.id}`),
+  transport: http(`https://api.pimlico.io/v2/base-sepolia/rpc?apikey=pim_QZqpZqQWSfNVFFhLxMRqDz`),
 });
+
 
 // export const baseSepoliaBundlerClient = createBundlerClient({
 //   client: baseSepoliaPublicClient,
 //   paymaster: getPaymasterActions("base"),
-//   transport: http(`https://api.pimlico.io/v2/base-sepolia/rpc?apikey=pim_QZqpZqQWSfNVFFhLxMRqDz`),
+//   transport: http("http://0.0.0.0:3000`),
 // });
+
 
 export const optimismBundlerClient = createBundlerClient({
   client: optimismPublicClient,

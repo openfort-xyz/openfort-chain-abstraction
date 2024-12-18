@@ -1,12 +1,14 @@
 import { Command } from "commander";
 import { bundlerClients, publicClients, walletClients } from "./clients";
-import { openfortAccountFactory, owner, isValidChain, demoNFTs, tokenA, paymasters, ownerAccount, chainIDs } from "./constants";
-import { Address, numberToHex, parseAbi } from "viem";
-import { getAccount } from "./openfortSmartAccount";
-
+import { isValidChain, demoNFTs, tokenA, paymasters, ownerAccount, chainIDs, V7SimpleAccountFactoryAddress } from "./constants";
+import { Abi, Address, getAddress, Hex, numberToHex, parseAbi } from "viem";
+import { toSimpleSmartAccount } from "./SimpleSmartAccount";
 import {
   entryPoint06Address,
+  entryPoint07Address,
+  EntryPointVersion,
   getUserOperationHash,
+  SmartAccountImplementation,
 } from "viem/account-abstraction";
 
 const figlet = require("figlet");
@@ -35,30 +37,14 @@ program
       throw new Error(`Unsupported chain: ${chain}`);
     }
 
-    const walletClient = walletClients[chain];
     const publicClient = publicClients[chain];
-
-    const nonceHex = numberToHex(nonce, { size: 32 });
-    const hash = await walletClient.writeContract({
-      address: openfortAccountFactory,
-      abi: parseAbi([
-        "function createAccountWithNonce(address, bytes32, bool)",
-      ]),
-      functionName: "createAccountWithNonce",
-      args: [owner, nonceHex, false],
-      chain: walletClient.chain,
-      account: walletClient.account || null,
-    });
-
-    const account = await getAccount({
+    const account = await toSimpleSmartAccount({
+      client: publicClient,
       owner: ownerAccount,
-      publicClient: publicClient,
-      nonce: nonceHex,
+      nonceKey: nonce,
     });
 
     const accountAddress = await account.getAddress();
-
-    console.log(`Transaction sent: ${hash}`);
     console.log(`Account Address: ${accountAddress}`);
   });
 
@@ -97,8 +83,8 @@ program
       .choices(["base", "optimism"]),
   )
   .requiredOption("-i, --ipfs-hash <ipfs-hash>", "ipfs hash")
-  .requiredOption("-a, --account <account>", "account address")
-  .action(async ({ chain, ipfsHash, account, nonce }) => {
+  .requiredOption("-a, --account-address <account-address>", "account address")
+  .action(async ({ chain, ipfsHash, accountAddress }) => {
     if (!isValidChain(chain)) {
       throw new Error(`Unsupported chain: ${chain}`);
     }
@@ -106,20 +92,27 @@ program
     const bundlerClient = bundlerClients[chain];
     const publicClient = publicClients[chain];
 
-    const smartAccount = await getAccount({
+    accountAddress = getAddress(accountAddress);
+
+    const account = await toSimpleSmartAccount({
       owner: ownerAccount,
-      publicClient: publicClient,
-      account: account as Address,
+      client: publicClient,
+      address: getAddress(accountAddress),
+      factoryAddress: V7SimpleAccountFactoryAddress,
+      entryPoint: {
+        address: entryPoint07Address,
+        version: "0.7",
+      },
     });
 
     const unsignedUserOp = await bundlerClient.prepareUserOperation({
-      account: smartAccount,
+      account: account,
       calls: [
         {
           to: tokenA[chain] as Address,
           abi: parseAbi(["function transferFrom(address, address, uint256)"]),
           functionName: "transferFrom",
-          args: [paymasters[chain] as Address, account, 1n],
+          args: [paymasters[chain] as Address, accountAddress, 1n],
         },
         {
           to: tokenA[chain] as Address,
@@ -129,30 +122,39 @@ program
         },
         {
           to: demoNFTs[chain] as Address,
-          abi: parseAbi(["function mint(address)"]),
+          abi: parseAbi(["function mint(string)"]),
           functionName: "mint",
-          args: [account],
+          args: [ipfsHash],
         }
       ],
-      verificationGasLimit: 10000000n,
+      verificationGasLimit: 1000000n,
+      postVerificationGasLimit: 1000000n,
+      preVerificationGas: 1000000n,
+      callGasLimit: 1000000n,
+      /** Concatenation of {@link UserOperation`verificationGasLimit`} (16 bytes) and {@link UserOperation`callGasLimit`} (16 bytes) */
+      accountGasLimits: `0x${1000000n.toString(16)}${1000000n.toString(16)}` as Hex,
     });
 
     const userOpHash = await getUserOperationHash({
       chainId: chainIDs[chain],
-      entryPointAddress: entryPoint06Address,
-      entryPointVersion: "0.6",
+      entryPointAddress: entryPoint07Address,
+      entryPointVersion: "0.7",
       userOperation: {
         ...(unsignedUserOp as any),
-        sender: await smartAccount.getAddress(),
+        sender: await account.getAddress(),
       },
     });
     const signature = await ownerAccount.signMessage({
       message: { raw: userOpHash },
     });
+
+
     const hash = await bundlerClient.sendUserOperation({
       ...unsignedUserOp,
       signature,
+      account: account,
     });
+
     console.log(`UserOp sent: ${hash}`);
   });
 

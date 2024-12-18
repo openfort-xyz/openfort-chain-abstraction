@@ -105,7 +105,6 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
                 userOp.nonce,
                 keccak256(userOp.initCode),
                 keccak256(userOp.callData),
-                userOp.accountGasLimits,
                 keccak256(abi.encode(repayTokenData, sponsorTokenData)),
                 bytes32(userOp.paymasterAndData[PAYMASTER_VALIDATION_GAS_OFFSET:PAYMASTER_DATA_OFFSET]),
                 userOp.preVerificationGas,
