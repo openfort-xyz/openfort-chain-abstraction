@@ -49,8 +49,9 @@ export const baseSepoliaBundlerClient = createBundlerClient({
 // export const baseSepoliaBundlerClient = createBundlerClient({
 //   client: baseSepoliaPublicClient,
 //   paymaster: getPaymasterActions("base"),
-//   transport: http("http://0.0.0.0:3000`),
+//   transport: http("http://0.0.0.0:3000"),
 // });
+
 
 
 export const optimismBundlerClient = createBundlerClient({

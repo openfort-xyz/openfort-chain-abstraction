@@ -1,39 +1,39 @@
 import { PaymasterActions, GetPaymasterDataParameters, GetPaymasterDataReturnType, GetPaymasterStubDataParameters, GetPaymasterStubDataReturnType, UserOperation, PackedUserOperation } from "viem/account-abstraction";
 import { paymasters, paymasterVerifier, supportedChain } from "./constants";
-import { Hex, Address, concat, numberToHex, getAddress } from "viem";
+import { Hex, Address, concat, numberToHex, getAddress, stringToHex, bytesToHex, SignableMessage, size, toHex, pad } from "viem";
 import { computeHash, getBlockNumber, getRepayToken, getSponsorTokens } from "./utils";
-
 
 
 export function getPaymasterActions(chain: supportedChain): PaymasterActions {
     const pmAddress = paymasters[chain] as Address;
     return {
         getPaymasterData: async (parameters: GetPaymasterDataParameters): Promise<GetPaymasterDataReturnType> => {
-
-
             const validAfter = await getBlockNumber(chain);
             const validUntil = validAfter + 1000000n;
             // TODO: get it from the parameters
-            const postVerificationGas = 100000n;
+            const postVerificationGas = parameters.paymasterPostOpGasLimit || BigInt(1e5);
+            console.log("postVerificationGas", postVerificationGas);
             const verificationGasLimit = parameters.verificationGasLimit || BigInt(1e5);
             const callGasLimit = parameters.callGasLimit || BigInt(1e5);
 
-            const accountGasLimits = `0x${verificationGasLimit.toString(16)}${callGasLimit.toString(16)}` as Hex;
-            const gasFees = `0x${parameters.maxFeePerGas!.toString(16)}${parameters.maxPriorityFeePerGas!.toString(16)}` as Hex;
             const userOp: PackedUserOperation = {
-                accountGasLimits: accountGasLimits,
-                gasFees: gasFees,
+                accountGasLimits: getAccountGasLimits(verificationGasLimit, callGasLimit),
+                gasFees: getGasLimits(parameters.maxPriorityFeePerGas!, parameters.maxFeePerGas!),
                 preVerificationGas: parameters.preVerificationGas || BigInt(0),
                 callData: parameters.callData,
                 nonce: parameters.nonce,
                 sender: parameters.sender,
                 signature: "0x",
-                initCode: parameters.initCode || "0x",
+                initCode: getInitCode(parameters.factory, parameters.factoryData),
                 paymasterAndData: "0x",
             };
+            
             const hash = await computeHash(userOp, chain, validUntil, validAfter);
-            const signature = await paymasterVerifier.signMessage({ message: hash });
-            console.log("signature", signature);
+            const signature = await paymasterVerifier.signMessage({ message: {raw: hash} });
+            console.log("paymasterVerifier", paymasterVerifier.address);
+            console.log("hash", hash);
+            console.log("paymastersignature", signature);
+    
             return {
                 paymaster: getAddress(pmAddress),
                 paymasterData: concat([
@@ -67,4 +67,31 @@ export function getPaymasterActions(chain: supportedChain): PaymasterActions {
             // };
         },
     };
+}
+
+function getInitCode(factory: Address | undefined, factoryData: Hex | undefined) {
+    return factory
+        ? concat([
+              factory,
+              factoryData || ("0x" as Hex)
+          ])
+        : "0x"
+}
+
+function getAccountGasLimits(verificationGasLimit: bigint, callGasLimit: bigint) {
+    return concat([
+        pad(toHex(verificationGasLimit), {
+            size: 16
+        }),
+        pad(toHex(callGasLimit), { size: 16 })
+    ])
+}
+
+function getGasLimits(maxPriorityFeePerGas: bigint, maxFeePerGas: bigint) {
+    return concat([
+        pad(toHex(maxPriorityFeePerGas), {
+            size: 16
+        }),
+        pad(toHex(maxFeePerGas), { size: 16 })
+    ])
 }

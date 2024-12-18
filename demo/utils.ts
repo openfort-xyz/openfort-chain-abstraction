@@ -17,6 +17,8 @@ export function computeHash(userOp: PackedUserOperation, chain: supportedChain, 
     console.log("userOp.nonce", userOp.nonce);
     console.log("userOp.initCode", userOp.initCode);
     console.log("userOp.callData", userOp.callData);
+    console.log("preVerificationGas", userOp.preVerificationGas);
+    console.log("gasFees", userOp.gasFees);
     // TODO: readd when readded in the CABPaymaster
     console.log("userOp.accountGasLimits", userOp.accountGasLimits);
     console.log("repayTokenData", repayTokenData);
@@ -38,6 +40,8 @@ export function computeHash(userOp: PackedUserOperation, chain: supportedChain, 
         [Number(validUntil), Number(validAfter)]
     );
     console.log("validUntilValidAfter", validUntilValidAfter);
+    console.log("chainID", chainIDs[chain]);
+    console.log("paymaster", paymasters[chain]);
 
     const encodedData = encodeAbiParameters(
         [

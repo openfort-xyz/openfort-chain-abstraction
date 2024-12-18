@@ -1,5 +1,5 @@
 import { privateKeyToAccount } from "viem/accounts";
-
+import { baseSepolia, optimismSepolia } from "viem/chains";
 // Add proper type definition
 export type supportedChain = "optimism" | "base";
 
@@ -11,7 +11,6 @@ export const paymasterVerifier = privateKeyToAccount(
 export const ownerAccount = privateKeyToAccount(
     process.env.OWNER_PRIVATE_KEY as `0x${string}`,
   );
-
 
 
 export const paymasters = {
@@ -50,8 +49,8 @@ export const vaultA = {
 };
 
 export const chainIDs = {
-  base: 8453,
-  optimism: 11155420,
+  base: baseSepolia.id,
+  optimism: optimismSepolia.id,
 };
 
 

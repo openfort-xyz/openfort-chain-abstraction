@@ -41,7 +41,11 @@ program
     const account = await toSimpleSmartAccount({
       client: publicClient,
       owner: ownerAccount,
-      nonceKey: nonce,
+      index: nonce,
+      entryPoint: {
+        address: entryPoint07Address,
+        version: "0.7",
+      },
     });
 
     const accountAddress = await account.getAddress();
@@ -83,28 +87,26 @@ program
       .choices(["base", "optimism"]),
   )
   .requiredOption("-i, --ipfs-hash <ipfs-hash>", "ipfs hash")
-  .requiredOption("-a, --account-address <account-address>", "account address")
-  .action(async ({ chain, ipfsHash, accountAddress }) => {
+  .requiredOption("-n, --account-nonce <nonce>", "account nonce")
+  .action(async ({ chain, ipfsHash, nonce }) => {
     if (!isValidChain(chain)) {
       throw new Error(`Unsupported chain: ${chain}`);
     }
 
     const bundlerClient = bundlerClients[chain];
     const publicClient = publicClients[chain];
-
-    accountAddress = getAddress(accountAddress);
-
     const account = await toSimpleSmartAccount({
       owner: ownerAccount,
       client: publicClient,
-      address: getAddress(accountAddress),
+      index: nonce,
       factoryAddress: V7SimpleAccountFactoryAddress,
       entryPoint: {
         address: entryPoint07Address,
         version: "0.7",
       },
     });
-
+    const accountAddress = await account.getAddress();
+    console.log(`Account Address: ${accountAddress}`);
     const unsignedUserOp = await bundlerClient.prepareUserOperation({
       account: account,
       calls: [
@@ -136,7 +138,7 @@ program
     });
 
     const userOpHash = await getUserOperationHash({
-      chainId: chainIDs[chain],
+      chainId: chainIDs[chain], 
       entryPointAddress: entryPoint07Address,
       entryPointVersion: "0.7",
       userOperation: {
