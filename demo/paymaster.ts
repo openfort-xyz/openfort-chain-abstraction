@@ -1,6 +1,6 @@
 import { PaymasterActions, GetPaymasterDataParameters, GetPaymasterDataReturnType, GetPaymasterStubDataParameters, GetPaymasterStubDataReturnType, UserOperation, PackedUserOperation } from "viem/account-abstraction";
 import { paymasters, paymasterVerifier, supportedChain } from "./constants";
-import { Hex, Address, concat, numberToHex, getAddress, stringToHex, bytesToHex, SignableMessage, size, toHex, pad } from "viem";
+import { Hex, Address, concat, numberToHex, getAddress, toHex, pad } from "viem";
 import { computeHash, getBlockTimestamp, getRepayToken, getSponsorTokens } from "./utils";
 
 
@@ -24,7 +24,7 @@ export function getPaymasterActions(chain: supportedChain): PaymasterActions {
                 sender: parameters.sender,
                 signature: "0x",
                 initCode: getInitCode(parameters.factory, parameters.factoryData),
-                paymasterAndData: "0x" as Hex,
+                paymasterAndData: "0x",
             };
 
             const hash = await computeHash(userOp, chain, validUntil, validAfter, verificationGasLimit, postVerificationGas);

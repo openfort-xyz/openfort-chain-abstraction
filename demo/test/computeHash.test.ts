@@ -3,7 +3,6 @@ import { Address, Hex } from "viem";
 import { computeHash } from "../utils";
 
 describe("computeHash", () => {
-
     const PAYMASTER_VALIDATION_GAS_OFFSET = 20;
     const PAYMASTER_DATA_OFFSET = 52;
 

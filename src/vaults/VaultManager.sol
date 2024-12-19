@@ -89,6 +89,21 @@ contract VaultManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardUpg
         emit Deposit(msg.sender, token, vault, amount, newShare);
     }
 
+    function depositFor(address recipient, IERC20 token, IVault vault, uint256 amount, bool isYield)
+        external
+        onlyRegisteredVault(vault)
+        nonReentrant
+        returns (uint256 newShare)
+    {
+        token.safeTransferFrom(msg.sender, address(vault), amount);
+
+        newShare = vault.deposit(token, amount, isYield);
+
+        _addShare(recipient, vault, newShare);
+
+        emit Deposit(recipient, token, vault, amount, newShare);
+    }
+
     /// @inheritdoc IVaultManager
     function queueWithdrawals(IVault[] calldata vaults, uint256[] calldata shares, address withdrawer)
         external
