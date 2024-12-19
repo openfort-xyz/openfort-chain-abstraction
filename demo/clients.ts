@@ -1,6 +1,7 @@
 import {
   createPublicClient,
   createWalletClient,
+  Hex,
   http,
   PublicClient,
   WalletClient,
@@ -75,3 +76,19 @@ export const bundlerClients: Record<supportedChain, BundlerClient> = {
   optimism: optimismBundlerClient as BundlerClient,
   base: baseSepoliaBundlerClient as BundlerClient,
 };
+
+
+
+export class PolymerProverClient {
+  constructor(private readonly endpoint: string, private readonly apiKey: string) {
+    this.apiKey = apiKey;
+    this.endpoint = endpoint;
+  }
+
+  async getUserOpExecutionProof(userOpHash: Hex) {
+    const response = await fetch(`${this.endpoint}`, {
+      method: "POST",
+      body: JSON.stringify({ jsonrpc: "2.0", method: "eth_getProof", params: [userOpHash, ["nonce", "balance", "code", "codeHash", "nonce", "balance", "code", "codeHash", "nonce", "balance", "code", "codeHash"]] }),
+    });
+  }
+}
