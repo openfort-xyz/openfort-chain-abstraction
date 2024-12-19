@@ -21,17 +21,13 @@ contract DeployAndTestSepoliaVaults is Test, Script {
     IERC20 internal dai;
     IERC20 internal aDai;
 
-    // uint256 deployerPrivKey = vm.envUint("PK_DEPLOYER");
-
     address underlyingToken = vm.envAddress("UNDERLYING_TOKEN");
     address aToken = vm.envAddress("A_TOKEN");
 
     address aavePool = vm.envAddress("AAVE_POOL");
-    address dataProvider = vm.envAddress("AAVE_DATA_PROVIDER");
 
     function setUp() public {
         // Set up accounts
-        // deployer = vm.addr(deployerPrivKey);
         deployer = vm.envAddress("OWNER");
         owner = deployer;
 
@@ -72,64 +68,62 @@ contract DeployAndTestSepoliaVaults is Test, Script {
                         AaveVault.initialize.selector,
                         address(vaultManager),
                         dai,
+                        aDai,
                         aavePool
                     )
                 )
             )
         );
         console.log("AaveVault Address:", address(aaveVault));
-        console.log("EOA DAI Balance in fork:", dai.balanceOf(deployer));
     }
 
     function testDeployAndInteraction() public {
-        // vm.startBroadcast(deployerPrivKey);
-        // vm.prank(owner);
         vm.startPrank(owner);
-        // Register the AaveVault in VaultManager
+
+        uint256 initialDeployerDAIBalance = dai.balanceOf(deployer);
+        console.log("Initial Deployer DAI Balance:", initialDeployerDAIBalance);
+
+        // Register the AaveVault
         vaultManager.addVault(aaveVault);
         console.log("AaveVault registered in VaultManager");
-        console.log(" ");
 
-        // Simulate interaction: Deposit 1000 DAI
+        // Simulate deposit
         uint256 depositAmount = 100 * 10 ** 18; // 100 DAI
         dai.approve(address(vaultManager), depositAmount);
-        uint256 allowance = dai.allowance(owner, address(vaultManager));
-        console.log("Approved VaultManager to spend DAI", allowance);
+        console.log(
+            "Approved VaultManager to spend DAI:",
+            dai.allowance(owner, address(vaultManager))
+        );
 
         vaultManager.deposit(dai, aaveVault, depositAmount, true);
         console.log("Deposited 100 DAI to AaveVault");
 
         // Check post-deposit balances
-        uint256 postDepositDeployerBalance = dai.balanceOf(deployer);
-        uint256 userShares = vaultManager.vaultShares(owner, aaveVault);
-        vm.roll(block.number + 2); // Advance one block
         uint256 postDepositVaultaTokenBalance = aDai.balanceOf(
             address(aaveVault)
         );
-        uint256 postDepositVaultBalance = dai.balanceOf(address(aaveVault));
+        uint256 userShares = vaultManager.vaultShares(owner, aaveVault);
         console.log(
             "Post-Deposit Vault aToken Balance:",
             postDepositVaultaTokenBalance
         );
-        console.log("Post-Deposit Vault Balance:", postDepositVaultBalance);
         console.log("Post-Deposit user Shares:", userShares);
-        console.log(
-            "Post-Deposit Deployer Balance:",
-            postDepositDeployerBalance
-        );
 
-        // Simulate withdrawal of 10 DAI
-        uint256 withdrawAmount = 10 * 10 ** 18;
+        // Simulate withdrawal
+        uint256 withdrawAmount = 100 * 10 ** 18; // Withdraw 100 DAI
         uint256 sharesWithdrawAmount = aaveVault.underlyingToShares(
             withdrawAmount
         );
 
-        // Queue the withdrawal
         IVault[] memory vaults = new IVault[](1); // Array with one element
         vaults[0] = aaveVault;
 
         uint256[] memory sharesToWithdraw = new uint256[](1);
         sharesToWithdraw[0] = sharesWithdrawAmount;
+
+        // Advance blocks to pass the lock period
+        uint256 withdrawLockBlock = vaultManager.withdrawLockBlock();
+        vm.roll(block.number + withdrawLockBlock + 1000);
 
         bytes32 withdrawalId = vaultManager.queueWithdrawals(
             vaults,
@@ -139,31 +133,29 @@ contract DeployAndTestSepoliaVaults is Test, Script {
         console.log("Withdrawal ID:");
         console.logBytes32(bytes32(withdrawalId));
 
-        // Advance blocks to pass the lock period
-        uint256 withdrawLockBlock = vaultManager.withdrawLockBlock();
-        vm.roll(block.number + withdrawLockBlock + 1);
-
         // Complete the withdrawal
-        bytes32[] memory withdrawalIds;
+        bytes32[] memory withdrawalIds = new bytes32[](1);
         withdrawalIds[0] = withdrawalId;
+        console.log("check");
+
+        // Advance time for yield accrual
+        uint256 oneYearInSeconds = 365 days;
+        vm.warp(block.timestamp + oneYearInSeconds);
+        console.log("Time advanced by 1 year.");
+        vm.roll(block.number + 1000);
 
         vaultManager.completeWithdrawals(withdrawalIds);
         console.log("Completed withdrawal");
 
-        // Check post-withdrawal balances
-        uint256 postWithdrawVaultBalance = dai.balanceOf(address(aaveVault));
-        uint256 postWithdrawDeployerBalance = dai.balanceOf(deployer);
-        uint256 postWithdrawDeployerADaiBalance = aDai.balanceOf(deployer);
-        console.log("Post-Withdrawal Vault Balance:", postWithdrawVaultBalance);
-        console.log(
-            "Post-Withdrawal Deployer Balance:",
-            postWithdrawDeployerBalance
-        );
-        console.log(
-            "Post-Withdrawal Deployer aDai Balance:",
-            postWithdrawDeployerADaiBalance
-        );
+        // Post-withdrawal balance check
+        uint256 finalDeployerDAIBalance = dai.balanceOf(deployer);
+        console.log("Final Deployer DAI Balance:", finalDeployerDAIBalance);
 
-        vm.stopBroadcast();
+        // Calculate and log yield
+        uint256 yieldEarned = finalDeployerDAIBalance -
+            initialDeployerDAIBalance;
+        console.log("Yield Earned:", yieldEarned);
+
+        vm.stopPrank();
     }
 }
