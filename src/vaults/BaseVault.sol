@@ -171,7 +171,7 @@ contract BaseVault is UUPSUpgradeable, OwnableUpgradeable, IVault {
         IERC20 token,
         uint256 amount,
         bool isYield
-    ) internal virtual returns (uint256) {
+    ) internal view virtual returns (uint256) {
         uint256 virtualShareAmount = priorTotalShares + SHARES_OFFSET;
         uint256 virtualTokenBalance = totalAssets() + BALANCE_OFFSET;
 
