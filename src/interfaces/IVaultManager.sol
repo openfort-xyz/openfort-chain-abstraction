@@ -16,13 +16,7 @@ interface IVaultManager {
      * @param amount The amount of tokens that was deposited.
      * @param shares The amount of shares that was issued.
      */
-    event Deposit(
-        address indexed account,
-        IERC20 indexed token,
-        IVault indexed vault,
-        uint256 amount,
-        uint256 shares
-    );
+    event Deposit(address indexed account, IERC20 indexed token, IVault indexed vault, uint256 amount, uint256 shares);
 
     /**
      * @notice Emitted when a withdrawal is queued.
@@ -31,12 +25,7 @@ interface IVaultManager {
      * @param shares The amount of shares that were withdrawn.
      * @param withdrawalId The ID of the withdrawal.
      */
-    event WithdrawalQueued(
-        address indexed account,
-        IVault[] vaults,
-        uint256[] shares,
-        bytes32 indexed withdrawalId
-    );
+    event WithdrawalQueued(address indexed account, IVault[] vaults, uint256[] shares, bytes32 indexed withdrawalId);
 
     /**
      * @notice Emitted when a withdrawal is completed.
@@ -45,12 +34,7 @@ interface IVaultManager {
      * @param shares The amount of shares that were withdrawn.
      * @param withdrawalId The ID of the withdrawal.
      */
-    event WithdrawalCompleted(
-        address indexed account,
-        IVault[] vaults,
-        uint256[] shares,
-        bytes32 indexed withdrawalId
-    );
+    event WithdrawalCompleted(address indexed account, IVault[] vaults, uint256[] shares, bytes32 indexed withdrawalId);
 
     /**
      * @notice Emitted when locked tokens are withdrawn.
@@ -58,11 +42,7 @@ interface IVaultManager {
      * @param vaults The vaults that were withdrawn from.
      * @param amounts The amounts of tokens that were withdrawn.
      */
-    event WithdrawSponsorToken(
-        address indexed account,
-        IVault[] vaults,
-        uint256[] amounts
-    );
+    event WithdrawSponsorToken(address indexed account, IVault[] vaults, uint256[] amounts);
 
     /// @notice Struct to represent the withdrawal request.
     struct Withdrawal {
@@ -89,12 +69,7 @@ interface IVaultManager {
      * @param isYield A flag to indicate if the deposit is in yield mode.
      * @return shares The amount of shares issued at the current exchange rate.
      */
-    function deposit(
-        IERC20 token,
-        IVault vault,
-        uint256 amount,
-        bool isYield
-    ) external returns (uint256);
+    function deposit(IERC20 token, IVault vault, uint256 amount, bool isYield) external returns (uint256);
 
     /**
      * @notice Withdraw the specified amount of tokens from the Vault.
@@ -103,11 +78,9 @@ interface IVaultManager {
      * @param withdrawer The address to send the withdrawn tokens to.
      * @return withdrawalId The ID of the withdrawal request.
      */
-    function queueWithdrawals(
-        IVault[] calldata vaults,
-        uint256[] calldata shares,
-        address withdrawer
-    ) external returns (bytes32);
+    function queueWithdrawals(IVault[] calldata vaults, uint256[] calldata shares, address withdrawer)
+        external
+        returns (bytes32);
 
     /**
      * @notice Complete the specified withdrawals.
@@ -136,10 +109,7 @@ interface IVaultManager {
      * @param vault The vault to query.
      * @return shares The amount of shares for the account.
      */
-    function vaultShares(
-        address account,
-        IVault vault
-    ) external view returns (uint256);
+    function vaultShares(address account, IVault vault) external view returns (uint256);
 
     /**
      * @notice Returns the amount of underlying tokens for the account in the specified vault.
@@ -147,35 +117,26 @@ interface IVaultManager {
      * @param token The token to query.
      * @return underlying The amount of underlying tokens for the account.
      */
-    function getAccountTokenBalance(
-        address account,
-        IERC20 token
-    ) external view returns (uint256);
+    function getAccountTokenBalance(address account, IERC20 token) external view returns (uint256);
 
     /**
      * @notice Returns the list of Vaults with the underlying token.
      * @param token The token to query.
      * @return vaults The list of Vaults with the underlying token.
      */
-    function getUnderlyingToVaultList(
-        IERC20 token
-    ) external view returns (IVault[] memory);
+    function getUnderlyingToVaultList(IERC20 token) external view returns (IVault[] memory);
 
     /**
      * @notice Returns the nonce for the account withdrawal.
      * @param account The account to query.
      * @return nonce The nonce for the account withdrawal.
      */
-    function getWithdrawalNonce(
-        address account
-    ) external view returns (uint256);
+    function getWithdrawalNonce(address account) external view returns (uint256);
 
     /**
      * @notice Returns the pending withdrawals for the account.
      * @param withdrawId The ID of the withdrawal request.
      * @return withdrawal The pending withdrawals for the account.
      */
-    function getWithdrawal(
-        bytes32 withdrawId
-    ) external view returns (Withdrawal memory);
+    function getWithdrawal(bytes32 withdrawId) external view returns (Withdrawal memory);
 }

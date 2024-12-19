@@ -16,6 +16,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 contract AaveVault is BaseVault {
     using SafeERC20 for IERC20;
     // Aave necessary libraries
+
     IPool public aavePool;
 
     IERC20 public aToken; // The aToken corresponding to the underlying token
@@ -26,18 +27,9 @@ contract AaveVault is BaseVault {
         IERC20 _aToken, // The aToken (e.g., aDAI)
         IPool _aavePool
     ) public initializer {
-        require(
-            address(_aavePool) != address(0),
-            "AaveVault: invalid Aave Pool address"
-        );
-        require(
-            address(_underlyingToken) != address(0),
-            "AaveVault: invalid underlying token address"
-        );
-        require(
-            address(_aToken) != address(0),
-            "AaveVault: invalid aToken address"
-        );
+        require(address(_aavePool) != address(0), "AaveVault: invalid Aave Pool address");
+        require(address(_underlyingToken) != address(0), "AaveVault: invalid underlying token address");
+        require(address(_aToken) != address(0), "AaveVault: invalid aToken address");
 
         // Assign the aToken
         aToken = _aToken;
@@ -49,16 +41,12 @@ contract AaveVault is BaseVault {
         super.initialize(_vaultManager, _underlyingToken);
     }
 
-    function _afterDeposit(
-        IERC20 token,
-        uint256 amount,
-        bool isYield
-    ) internal override {
+    function _afterDeposit(IERC20 token, uint256 amount, bool isYield) internal override {
         // Approve the Aave Pool to spend the underlying tokens
         underlyingToken.approve(address(aavePool), amount);
 
         // Perform a low-level call to the `supply` function of the Aave Pool
-        (bool success, ) = address(aavePool).call(
+        (bool success,) = address(aavePool).call(
             abi.encodeWithSelector(
                 IPool.supply.selector,
                 address(underlyingToken), // Underlying token
@@ -70,20 +58,10 @@ contract AaveVault is BaseVault {
         require(success, "AaveVault: Supply to Aave failed");
     }
 
-    function _afterWithdraw(
-        IERC20 token,
-        uint256 amount,
-        address recipient
-    ) internal override {
+    function _afterWithdraw(IERC20 token, uint256 amount, address recipient) internal override {
         // Perform a low-level call to the `withdraw` function of the Aave Pool
-        (bool success, ) = address(aavePool).call(
-            abi.encodeWithSelector(
-                IPool.withdraw.selector,
-                token,
-                amount,
-                recipient
-            )
-        );
+        (bool success,) =
+            address(aavePool).call(abi.encodeWithSelector(IPool.withdraw.selector, token, amount, recipient));
 
         // Revert the transaction if the call fails
         require(success, "AaveVault: Withdraw from Aave failed");
@@ -93,18 +71,17 @@ contract AaveVault is BaseVault {
         return aToken.balanceOf(address(this));
     }
 
-    function _previewDeposit(
-        uint256 priorTotalShares,
-        IERC20 token,
-        uint256 amount,
-        bool isYield
-    ) internal view override returns (uint256) {
+    function _previewDeposit(uint256 priorTotalShares, IERC20 token, uint256 amount, bool isYield)
+        internal
+        view
+        override
+        returns (uint256)
+    {
         uint256 virtualShareAmount = priorTotalShares + SHARES_OFFSET;
         uint256 virtualTokenBalance = totalAssets() + BALANCE_OFFSET;
 
         uint256 virtualPriorTokenBalance = virtualTokenBalance;
-        uint256 newShares = (amount * virtualShareAmount) /
-            virtualPriorTokenBalance;
+        uint256 newShares = (amount * virtualShareAmount) / virtualPriorTokenBalance;
 
         return newShares;
     }
