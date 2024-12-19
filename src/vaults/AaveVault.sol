@@ -23,12 +23,13 @@ contract AaveVault is BaseVault {
     IPool public aavePool;
     // L2Encoder public l2Encoder;
     AaveProtocolDataProvider public dataProvider;
-    /// @notice The total amount of shares.
-    uint256 public totalYieldShares;
+
+    IERC20 public aToken; // The aToken corresponding to the underlying token
 
     function initialize(
         IVaultManager _vaultManager,
-        IERC20 _underlyingToken, // The token managed by this vault -- the aToken minted in a 1:1 ratio by Aave protocol
+        IERC20 _underlyingToken, // The actual token (e.g., DAI)
+        IERC20 _aToken, // The aToken (e.g., aDAI)
         IPool _aavePool
     )
         public
@@ -43,15 +44,22 @@ contract AaveVault is BaseVault {
             address(_underlyingToken) != address(0),
             "AaveVault: invalid underlying token address"
         );
+        require(
+            address(_aToken) != address(0),
+            "AaveVault: invalid aToken address"
+        );
 
+        // Assign the aToken
+        aToken = _aToken;
+
+        // Assign the Aave Pool
         aavePool = _aavePool;
-        // l2Encoder = _l2Encoder;
-        // dataProvider = _dataProvider;
-        // Initialize BaseVault
+
+        // Initialize the BaseVault
         super.initialize(_vaultManager, _underlyingToken);
     }
 
-    function _afterDeposit(
+    function _beforeDeposit(
         IERC20 token,
         uint256 amount,
         bool isYield
@@ -112,5 +120,9 @@ contract AaveVault is BaseVault {
         // uint256 withdrawnAmount = abi.decode(returnData, (uint256));
 
         // token.safeTransfer(recipient, withdrawnAmount);
+    }
+
+    function _totalAssets() internal view virtual override returns (uint256) {
+        return aToken.balanceOf(address(this));
     }
 }
