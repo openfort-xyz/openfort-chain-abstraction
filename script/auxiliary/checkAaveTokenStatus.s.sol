@@ -13,17 +13,11 @@ contract CheckAaveTokenStatus is Script {
      * @param token The address of the token to check.
      * @return bool True if the token is active, false otherwise.
      */
-    function isAaveToken(
-        address protocolDataProvider,
-        address token
-    ) public view returns (bool) {
-        AaveProtocolDataProvider dataProvider = AaveProtocolDataProvider(
-            protocolDataProvider
-        );
+    function isAaveToken(address protocolDataProvider, address token) public view returns (bool) {
+        AaveProtocolDataProvider dataProvider = AaveProtocolDataProvider(protocolDataProvider);
 
         // Get reserve data for the token
-        (, , , , , , , , bool isActive, ) = dataProvider
-            .getReserveConfigurationData(token);
+        (,,,,,,,, bool isActive,) = dataProvider.getReserveConfigurationData(token);
 
         console.log("Token:", token, "Active:", isActive);
 

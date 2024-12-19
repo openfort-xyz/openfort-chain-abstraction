@@ -12,12 +12,7 @@ import {IInvoiceManager} from "../interfaces/IInvoiceManager.sol";
 import {IVault} from "../interfaces/IVault.sol";
 import {IVaultManager} from "../interfaces/IVaultManager.sol";
 
-contract VaultManager is
-    UUPSUpgradeable,
-    OwnableUpgradeable,
-    ReentrancyGuardUpgradeable,
-    IVaultManager
-{
+contract VaultManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgradeable, IVaultManager {
     using SafeERC20 for IERC20;
 
     IInvoiceManager public invoiceManager;
@@ -53,18 +48,15 @@ contract VaultManager is
     }
 
     modifier onlyInvoiceManager() {
-        require(
-            msg.sender == address(invoiceManager),
-            "VaultManager: caller is not the InvoiceManager"
-        );
+        require(msg.sender == address(invoiceManager), "VaultManager: caller is not the InvoiceManager");
         _;
     }
 
-    function initialize(
-        address initialOwner,
-        IInvoiceManager _invoiceManager,
-        uint256 _withdrawLockBlock
-    ) public virtual initializer {
+    function initialize(address initialOwner, IInvoiceManager _invoiceManager, uint256 _withdrawLockBlock)
+        public
+        virtual
+        initializer
+    {
         invoiceManager = _invoiceManager;
         withdrawLockBlock = _withdrawLockBlock;
         _transferOwnership(initialOwner);
@@ -80,12 +72,7 @@ contract VaultManager is
     }
 
     /// @inheritdoc IVaultManager
-    function deposit(
-        IERC20 token,
-        IVault vault,
-        uint256 amount,
-        bool isYield
-    )
+    function deposit(IERC20 token, IVault vault, uint256 amount, bool isYield)
         external
         override
         onlyRegisteredVault(vault)
@@ -102,69 +89,40 @@ contract VaultManager is
     }
 
     /// @inheritdoc IVaultManager
-    function queueWithdrawals(
-        IVault[] calldata vaults,
-        uint256[] calldata shares,
-        address withdrawer
-    ) external override nonReentrant returns (bytes32 withdrawalId) {
-        require(
-            vaults.length == shares.length,
-            "VaultManager: invalid input length"
-        );
-        require(
-            withdrawer == msg.sender,
-            "VaultManager: caller is not the withdrawer"
-        );
+    function queueWithdrawals(IVault[] calldata vaults, uint256[] calldata shares, address withdrawer)
+        external
+        override
+        nonReentrant
+        returns (bytes32 withdrawalId)
+    {
+        require(vaults.length == shares.length, "VaultManager: invalid input length");
+        require(withdrawer == msg.sender, "VaultManager: caller is not the withdrawer");
 
         for (uint256 i = 0; i < vaults.length; i++) {
             IVault vault = vaults[i];
             uint256 share = shares[i];
 
-            require(
-                registeredVaults[vault],
-                "VaultManager: vault not registered"
-            );
-            require(
-                accountShares[withdrawer][vault] >= share,
-                "VaultManager: insufficient shares"
-            );
+            require(registeredVaults[vault], "VaultManager: vault not registered");
+            require(accountShares[withdrawer][vault] >= share, "VaultManager: insufficient shares");
         }
         uint256 withdrawNonce = withdrawalNonces[withdrawer];
         withdrawalId = keccak256(abi.encodePacked(withdrawer, withdrawNonce));
 
-        withdrawals[withdrawalId] = Withdrawal(
-            withdrawer,
-            vaults,
-            shares,
-            block.number,
-            withdrawNonce,
-            false
-        );
+        withdrawals[withdrawalId] = Withdrawal(withdrawer, vaults, shares, block.number, withdrawNonce, false);
         withdrawalNonces[withdrawer] = withdrawNonce + 1;
 
         emit WithdrawalQueued(withdrawer, vaults, shares, withdrawalId);
     }
 
     /// @inheritdoc IVaultManager
-    function completeWithdrawals(
-        bytes32[] calldata withdrawalIds
-    ) external override nonReentrant {
+    function completeWithdrawals(bytes32[] calldata withdrawalIds) external override nonReentrant {
         for (uint256 i = 0; i < withdrawalIds.length; i++) {
             bytes32 withdrawalId = withdrawalIds[i];
             Withdrawal storage withdrawal = withdrawals[withdrawalId];
 
-            require(
-                !withdrawal.completed,
-                "VaultManager: withdrawal already completed"
-            );
-            require(
-                withdrawal.account == msg.sender,
-                "VaultManager: caller is not the withdrawer"
-            );
-            require(
-                block.number >= withdrawal.startBlock + withdrawLockBlock,
-                "VaultManager: withdrawal not ready"
-            );
+            require(!withdrawal.completed, "VaultManager: withdrawal already completed");
+            require(withdrawal.account == msg.sender, "VaultManager: caller is not the withdrawer");
+            require(block.number >= withdrawal.startBlock + withdrawLockBlock, "VaultManager: withdrawal not ready");
 
             for (uint256 j = 0; j < withdrawal.vaults.length; j++) {
                 IVault vault = withdrawal.vaults[j];
@@ -175,12 +133,7 @@ contract VaultManager is
             }
 
             withdrawal.completed = true;
-            emit WithdrawalCompleted(
-                msg.sender,
-                withdrawal.vaults,
-                withdrawal.amounts,
-                withdrawalId
-            );
+            emit WithdrawalCompleted(msg.sender, withdrawal.vaults, withdrawal.amounts, withdrawalId);
         }
     }
 
@@ -191,10 +144,7 @@ contract VaultManager is
         uint256[] calldata amounts,
         address receiver
     ) external override nonReentrant onlyInvoiceManager {
-        require(
-            vaults.length == amounts.length,
-            "VaultManager: invalid input length"
-        );
+        require(vaults.length == amounts.length, "VaultManager: invalid input length");
 
         for (uint256 i = 0; i < vaults.length; i++) {
             IVault vault = vaults[i];
@@ -210,18 +160,12 @@ contract VaultManager is
     }
 
     /// @inheritdoc IVaultManager
-    function vaultShares(
-        address account,
-        IVault vault
-    ) external view override returns (uint256) {
+    function vaultShares(address account, IVault vault) external view override returns (uint256) {
         return accountShares[account][vault];
     }
 
     /// @inheritdoc IVaultManager
-    function getAccountTokenBalance(
-        address account,
-        IERC20 token
-    ) external view override returns (uint256 balance) {
+    function getAccountTokenBalance(address account, IERC20 token) external view override returns (uint256 balance) {
         IVault[] memory vaults = accountVaultList[account];
         for (uint256 i = 0; i < vaults.length; i++) {
             IVault vault = vaults[i];
@@ -233,23 +177,17 @@ contract VaultManager is
     }
 
     /// @inheritdoc IVaultManager
-    function getUnderlyingToVaultList(
-        IERC20 token
-    ) external view override returns (IVault[] memory) {
+    function getUnderlyingToVaultList(IERC20 token) external view override returns (IVault[] memory) {
         return underlyingToVaultList[token];
     }
 
     /// @inheritdoc IVaultManager
-    function getWithdrawalNonce(
-        address account
-    ) external view returns (uint256) {
+    function getWithdrawalNonce(address account) external view returns (uint256) {
         return withdrawalNonces[account];
     }
 
     /// @inheritdoc IVaultManager
-    function getWithdrawal(
-        bytes32 withdrawalId
-    ) external view returns (Withdrawal memory) {
+    function getWithdrawal(bytes32 withdrawalId) external view returns (Withdrawal memory) {
         return withdrawals[withdrawalId];
     }
 
@@ -266,11 +204,7 @@ contract VaultManager is
         accountShares[account][vault] += amount;
     }
 
-    function _removeShare(
-        address account,
-        IVault vault,
-        uint256 amountShare
-    ) internal {
+    function _removeShare(address account, IVault vault, uint256 amountShare) internal {
         // sanity check
         require(amountShare != 0, "VaultManager: share cannot be zero");
 
@@ -293,11 +227,9 @@ contract VaultManager is
     function _removeAccountVaultList(address account, IVault vault) internal {
         uint256 listLength = accountVaultList[account].length;
         uint256 i = 0;
-        for (; i < listLength; ) {
+        for (; i < listLength;) {
             if (accountVaultList[account][i] == vault) {
-                accountVaultList[account][i] = accountVaultList[account][
-                    listLength - 1
-                ];
+                accountVaultList[account][i] = accountVaultList[account][listLength - 1];
                 accountVaultList[account].pop();
                 break;
             }
