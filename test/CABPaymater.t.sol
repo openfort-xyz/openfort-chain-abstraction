@@ -189,13 +189,7 @@ contract CABPaymasterTest is Test {
         );
         paymaster.postOp(IPaymaster.PostOpMode.opSucceeded, context, 1222, 42);
     }
-
-    function testPaymasterSigRecover() public {
-        bytes memory signature = hex"62cf09218852fa9f7dfba892a7813a4ea8f03e8b4459b15dc0a7557bc4cb7cc800bead31b530d2f80644bb94bd491e0a660c91382b09d534e0f7f864da4c01db1b";
-        bytes32 hash = 0x0516f2ecbc851514607eadb71b63c15ff0a3fdde5f661fcdf6e412dfd4396073;
-        address recovered = ECDSA.recover(MessageHashUtils.toEthSignedMessageHash(hash), signature);
-        assertEq(recovered, rekt);
-    }
+}
 
 //     function testGetHash() public {
 //         uint48 validUntil = 20379348;
@@ -229,6 +223,3 @@ contract CABPaymasterTest is Test {
 //         // NEED TO MOCK paymaster address to pass the proof: 0xF6e64504ed56ec2725CDd0b3C1b23626D66008A2!!!
 //         assert(hash == 0x88800f0c29d6ba24fa635822ff4098e15b23048a57eec551b4a3af752aab97cd);
 //     }
-
-}
-

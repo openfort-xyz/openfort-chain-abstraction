@@ -1,48 +1,37 @@
 
-import { Address, concat, encodeAbiParameters, encodePacked, getAddress, Hex, keccak256, numberToHex, pad } from "viem";
+import { Address, concat, encodeAbiParameters, getAddress, Hex, keccak256, numberToHex, pad, toHex } from "viem";
 import { publicClients } from "./clients";
 import { chainIDs, paymasters, supportedChain, tokenA, vaultA } from "./constants";
 import { PackedUserOperation } from "viem/account-abstraction";
 
-export async function getBlockNumber(chain: supportedChain) {
-    return await publicClients[chain].getBlockNumber();
+export async function getBlockTimestamp(chain: supportedChain) {
+    const block = await publicClients[chain].getBlock();
+    return block.timestamp;
 }
 
-
-export function computeHash(userOp: PackedUserOperation, chain: supportedChain, validUntil: bigint, validAfter: bigint) {
+export function computeHash(
+    userOp: PackedUserOperation,
+    chain: supportedChain,
+    validUntil: bigint,
+    validAfter: bigint,
+    paymasterVerificationGasLimit: bigint,
+    paymasterPostOpGasLimit: bigint,
+) {
 
     const repayTokenData = getRepayToken(userOp.sender);
     const sponsorTokenData = getSponsorTokens(userOp.sender, chain);
-    console.log("userOp.sender", userOp.sender);
-    console.log("userOp.nonce", userOp.nonce);
-    console.log("userOp.initCode", userOp.initCode);
-    console.log("userOp.callData", userOp.callData);
-    console.log("preVerificationGas", userOp.preVerificationGas);
-    console.log("gasFees", userOp.gasFees);
-    // TODO: readd when readded in the CABPaymaster
-    console.log("userOp.accountGasLimits", userOp.accountGasLimits);
-    console.log("repayTokenData", repayTokenData);
-    console.log("sponsorTokenData", sponsorTokenData);
     const encodedTokenData = encodeAbiParameters(
         [{ type: "bytes" }, { type: "bytes" }],
         [repayTokenData, sponsorTokenData]
     );
-    console.log("encodedTokenData", encodedTokenData);
-    const PAYMASTER_VALIDATION_GAS_OFFSET = 20;
-    const PAYMASTER_DATA_OFFSET = 52;
-    const gasInfo =  `0x${userOp.paymasterAndData.slice(2 + 2 * PAYMASTER_VALIDATION_GAS_OFFSET, 2 + 2 * PAYMASTER_DATA_OFFSET)}`
-    console.log("gasInfo", gasInfo);
-    console.log("validUntil", validUntil);
-    console.log("validAfter", validAfter);
-
+    const gasInfo = concat([
+        pad(toHex(paymasterVerificationGasLimit || 0n), { size: 16 }),
+        pad(toHex(paymasterPostOpGasLimit || 0n), { size: 16}),
+    ])
     const validUntilValidAfter = encodeAbiParameters(
         [{ type: "uint48", name: "validUntil" }, { type: "uint48", name: "validAfter" }],
         [Number(validUntil), Number(validAfter)]
     );
-    console.log("validUntilValidAfter", validUntilValidAfter);
-    console.log("chainID", chainIDs[chain]);
-    console.log("paymaster", paymasters[chain]);
-
     const encodedData = encodeAbiParameters(
         [
             { type: "address", name: "sender" },
@@ -62,7 +51,7 @@ export function computeHash(userOp: PackedUserOperation, chain: supportedChain, 
         [
             getAddress(userOp.sender),
             userOp.nonce,
-            pad(keccak256(userOp.initCode), {size: 32}),
+            pad(keccak256(userOp.initCode), { size: 32 }),
             keccak256(userOp.callData),
             // pad(userOp.accountGasLimits, { size: 32 }),
             keccak256(encodedTokenData),
@@ -75,10 +64,7 @@ export function computeHash(userOp: PackedUserOperation, chain: supportedChain, 
             Number(validAfter)
         ]
     )
-
-    console.log("encodedData", encodedData);
     const userOpHash = keccak256(encodedData);
-    console.log("userOpHash", userOpHash);
     return userOpHash;
 }
 

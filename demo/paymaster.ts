@@ -1,15 +1,15 @@
 import { PaymasterActions, GetPaymasterDataParameters, GetPaymasterDataReturnType, GetPaymasterStubDataParameters, GetPaymasterStubDataReturnType, UserOperation, PackedUserOperation } from "viem/account-abstraction";
 import { paymasters, paymasterVerifier, supportedChain } from "./constants";
 import { Hex, Address, concat, numberToHex, getAddress, stringToHex, bytesToHex, SignableMessage, size, toHex, pad } from "viem";
-import { computeHash, getBlockNumber, getRepayToken, getSponsorTokens } from "./utils";
+import { computeHash, getBlockTimestamp, getRepayToken, getSponsorTokens } from "./utils";
 
 
 export function getPaymasterActions(chain: supportedChain): PaymasterActions {
     const pmAddress = paymasters[chain] as Address;
     return {
         getPaymasterData: async (parameters: GetPaymasterDataParameters): Promise<GetPaymasterDataReturnType> => {
-            const validAfter = await getBlockNumber(chain);
-            const validUntil = validAfter + 1000000n;
+            const validAfter = await getBlockTimestamp(chain);
+            const validUntil = validAfter + 1_000_000n;
             // TODO: get it from the parameters
             const postVerificationGas = parameters.paymasterPostOpGasLimit || BigInt(1e5);
             console.log("postVerificationGas", postVerificationGas);
@@ -25,15 +25,15 @@ export function getPaymasterActions(chain: supportedChain): PaymasterActions {
                 sender: parameters.sender,
                 signature: "0x",
                 initCode: getInitCode(parameters.factory, parameters.factoryData),
-                paymasterAndData: "0x",
+                paymasterAndData: "0x" as Hex,
             };
-            
-            const hash = await computeHash(userOp, chain, validUntil, validAfter);
-            const signature = await paymasterVerifier.signMessage({ message: {raw: hash} });
+
+            const hash = await computeHash(userOp, chain, validUntil, validAfter, verificationGasLimit, postVerificationGas);
+            const signature = await paymasterVerifier.signMessage({ message: { raw: hash } });
             console.log("paymasterVerifier", paymasterVerifier.address);
             console.log("hash", hash);
             console.log("paymastersignature", signature);
-    
+
             return {
                 paymaster: getAddress(pmAddress),
                 paymasterData: concat([
@@ -54,17 +54,6 @@ export function getPaymasterActions(chain: supportedChain): PaymasterActions {
             return {
                 paymasterAndData: (await getPaymasterActions(chain).getPaymasterData(parameters)).paymasterAndData as Hex,
             };
-
-            // Simulation reverts:  "transferFrom | approve | mint" reverted with the following signature": Insufficient allowance
-            // return {
-            //     paymasterAndData: "0x" as Hex,
-            // };
-
-
-            // return {
-            //     paymasterAndData:
-            //         `${pmAddress}00000000000000000000000000000000000000000000000000000000deadbeef000000000000000000000000000000000000000000000000000000000000123400000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000002000000000000000000000000f62849f9a0b5bf2913b396098f7c7019b51a820a00000000000000000000000000000000000000000000000000000000009896803c3e4f3f2488eab12a788db10240c757d360350a2a3938f37237ddfe070d132a28796766b9f0ef1f04cd3678ac598d76c9bec7e70f11bfae500873879b2fead31b` as Hex,
-            // };
         },
     };
 }
@@ -72,9 +61,9 @@ export function getPaymasterActions(chain: supportedChain): PaymasterActions {
 function getInitCode(factory: Address | undefined, factoryData: Hex | undefined) {
     return factory
         ? concat([
-              factory,
-              factoryData || ("0x" as Hex)
-          ])
+            factory,
+            factoryData || ("0x" as Hex)
+        ])
         : "0x"
 }
 
