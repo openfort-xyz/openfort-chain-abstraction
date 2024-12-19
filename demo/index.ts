@@ -1,15 +1,11 @@
 import { Command } from "commander";
 import { bundlerClients, publicClients, walletClients } from "./clients";
-import { isValidChain, demoNFTs, tokenA, paymasters, ownerAccount, chainIDs, V7SimpleAccountFactoryAddress } from "./constants";
-import { Abi, Address, getAddress, Hex, numberToHex, parseAbi } from "viem";
+import { isValidChain, demoNFTs, tokenA, paymasters, ownerAccount, chainIDs, V7SimpleAccountFactoryAddress, openfortContracts } from "./constants";
+import { Address, getAddress, Hex, parseAbi } from "viem";
 import { toSimpleSmartAccount } from "./SimpleSmartAccount";
 import {
-  entryPoint06Address,
   entryPoint07Address,
-  EntryPointVersion,
   getUserOperationHash,
-  SmartAccountImplementation,
-  entryPoint07Abi
 } from "viem/account-abstraction";
 
 const figlet = require("figlet");
@@ -55,9 +51,74 @@ program
 program
   .command("lock-tokens")
   .description("lock tokens on a yield-bearing vault")
+  .addOption(
+    new Command()
+      .createOption("-c, --chain <chain>", "choose chain")
+      .choices(["base", "optimism"]),
+  )
   .requiredOption("-t, --token <token>", "token address")
   .requiredOption("-a, --amount <amount>", "amount to lock")
-  .action(async ({ token, amount }) => { });
+  .requiredOption("-s, --account-salt <salt>", "account salt")
+  .action(async ({ token, amount, chain, accountSalt }) => {
+    if (!isValidChain(chain)) {
+      throw new Error(`Unsupported chain: ${chain}`);
+    }
+
+    if (!(token in openfortContracts[chain].vaults)) {
+      throw new Error(`Token ${token} not supported on ${chain}`);
+    }
+
+    const vaultManager = openfortContracts[chain].vaultManager;
+    const vault = openfortContracts[chain].vaults[token];
+    const publicClient = publicClients[chain];
+    const account = await toSimpleSmartAccount({
+      client: publicClient,
+      owner: ownerAccount,
+      salt: accountSalt,
+      entryPoint: {
+        address: entryPoint07Address,
+        version: "0.7",
+      },
+    });
+
+    const accountAddress = await account.getAddress();
+    console.log(`Account Address: ${accountAddress}`);
+
+    const bundlerClient = bundlerClients[chain];
+    const unsignedUserOp = await bundlerClient.prepareUserOperation({
+      account: account,
+      calls: [
+        {
+          to: vaultManager,
+          abi: parseAbi(["function deposit(address, address, uint256, bool)"]),
+          functionName: "deposit",
+          args: [getAddress(token), getAddress(vault), amount, false],
+        }
+      ]
+    })
+
+    const userOpHash = await getUserOperationHash({
+      chainId: chainIDs[chain], 
+      entryPointAddress: entryPoint07Address,
+      entryPointVersion: "0.7",
+      userOperation: {
+        ...(unsignedUserOp as any),
+        sender: await account.getAddress(),
+      },
+    });
+
+    const signature = await ownerAccount.signMessage({
+      message: { raw: userOpHash },
+    });
+
+    const hash = await bundlerClient.sendUserOperation({
+      ...unsignedUserOp,
+      signature,
+      account: account,
+    });
+    console.log(`UserOp sent: ${hash}`);
+  });
+
 
 program
   .command("get-chain-abstraction-balance")
