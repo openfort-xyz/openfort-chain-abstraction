@@ -10,9 +10,8 @@ export function getPaymasterActions(chain: supportedChain): PaymasterActions {
         getPaymasterData: async (parameters: GetPaymasterDataParameters): Promise<GetPaymasterDataReturnType> => {
             const validAfter = await getBlockTimestamp(chain);
             const validUntil = validAfter + 1_000_000n;
-            // TODO: get it from the parameters
+
             const postVerificationGas = parameters.paymasterPostOpGasLimit || BigInt(1e5);
-            console.log("postVerificationGas", postVerificationGas);
             const verificationGasLimit = parameters.verificationGasLimit || BigInt(1e5);
             const callGasLimit = parameters.callGasLimit || BigInt(1e5);
 
@@ -30,9 +29,6 @@ export function getPaymasterActions(chain: supportedChain): PaymasterActions {
 
             const hash = await computeHash(userOp, chain, validUntil, validAfter, verificationGasLimit, postVerificationGas);
             const signature = await paymasterVerifier.signMessage({ message: { raw: hash } });
-            console.log("paymasterVerifier", paymasterVerifier.address);
-            console.log("hash", hash);
-            console.log("paymastersignature", signature);
 
             return {
                 paymaster: getAddress(pmAddress),

@@ -9,6 +9,7 @@ import {
   EntryPointVersion,
   getUserOperationHash,
   SmartAccountImplementation,
+  entryPoint07Abi
 } from "viem/account-abstraction";
 
 const figlet = require("figlet");
@@ -31,17 +32,16 @@ program
       .createOption("-c, --chain <chain>", "choose chain")
       .choices(["base", "optimism"]),
   )
-  .requiredOption("-n, --nonce <nonce>", "nonce")
-  .action(async ({ chain, nonce }) => {
+  .requiredOption("-s, --account-salt <salt>", "account salt")
+  .action(async ({ chain, accountSalt }) => {
     if (!isValidChain(chain)) {
       throw new Error(`Unsupported chain: ${chain}`);
     }
-
     const publicClient = publicClients[chain];
     const account = await toSimpleSmartAccount({
       client: publicClient,
       owner: ownerAccount,
-      index: nonce,
+      salt: accountSalt,
       entryPoint: {
         address: entryPoint07Address,
         version: "0.7",
@@ -87,18 +87,18 @@ program
       .choices(["base", "optimism"]),
   )
   .requiredOption("-i, --ipfs-hash <ipfs-hash>", "ipfs hash")
-  .requiredOption("-n, --account-nonce <nonce>", "account nonce")
-  .action(async ({ chain, ipfsHash, nonce }) => {
+  .requiredOption("-s, --account-salt <salt>", "account salt")
+  .action(async ({ chain, ipfsHash, accountSalt }) => {
     if (!isValidChain(chain)) {
       throw new Error(`Unsupported chain: ${chain}`);
     }
-
+    const nftPrice = 500n;
     const bundlerClient = bundlerClients[chain];
     const publicClient = publicClients[chain];
     const account = await toSimpleSmartAccount({
       owner: ownerAccount,
       client: publicClient,
-      index: nonce,
+      salt: accountSalt,
       factoryAddress: V7SimpleAccountFactoryAddress,
       entryPoint: {
         address: entryPoint07Address,
@@ -114,13 +114,13 @@ program
           to: tokenA[chain] as Address,
           abi: parseAbi(["function transferFrom(address, address, uint256)"]),
           functionName: "transferFrom",
-          args: [paymasters[chain] as Address, accountAddress, 1n],
+          args: [paymasters[chain] as Address, accountAddress, nftPrice],
         },
         {
           to: tokenA[chain] as Address,
           abi: parseAbi(["function approve(address, uint256)"]),
           functionName: "approve",
-          args: [demoNFTs[chain] as Address, 500n]
+          args: [demoNFTs[chain] as Address, nftPrice]
         },
         {
           to: demoNFTs[chain] as Address,
@@ -150,13 +150,11 @@ program
       message: { raw: userOpHash },
     });
 
-
     const hash = await bundlerClient.sendUserOperation({
       ...unsignedUserOp,
       signature,
       account: account,
     });
-
     console.log(`UserOp sent: ${hash}`);
   });
 

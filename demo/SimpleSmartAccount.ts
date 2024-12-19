@@ -34,7 +34,7 @@ import { getAction } from "viem/utils"
 
 export const getAccountInitCode = async (
   owner: Address,
-  index = BigInt(0)
+  salt: bigint
 ): Promise<Hex> => {
   if (!owner) throw new Error("Owner account not found")
 
@@ -66,7 +66,7 @@ export const getAccountInitCode = async (
           }
       ],
       functionName: "createAccount",
-      args: [owner, index]
+      args: [owner, salt]
   })
 }
 
@@ -84,7 +84,7 @@ export type ToSimpleSmartAccountParameters<
       address: Address
       version: entryPointVersion
   }
-  index?: bigint
+  salt?: bigint
   address?: Address
   nonceKey?: bigint
 }
@@ -136,7 +136,7 @@ export async function toSimpleSmartAccount<
       client,
       owner,
       factoryAddress: _factoryAddress,
-      index = BigInt(0),
+      salt,
       address,
       nonceKey
   } = parameters
@@ -172,7 +172,7 @@ export async function toSimpleSmartAccount<
   const getFactoryArgs = async () => {
       return {
           factory: factoryAddress,
-          factoryData: await getAccountInitCode(localOwner.address, index)
+          factoryData: await getAccountInitCode(localOwner.address, salt ?? BigInt(0))
       }
   }
 
@@ -182,9 +182,7 @@ export async function toSimpleSmartAccount<
       getFactoryArgs,
       async getAddress() {
           if (accountAddress) return accountAddress
-
           const { factory, factoryData } = await getFactoryArgs()
-
           // Get the sender address based on the init code
           accountAddress = await getSenderAddress(client, {
               factory,
