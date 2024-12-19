@@ -13,6 +13,8 @@ import {IVault} from "../interfaces/IVault.sol";
 import {IPaymasterVerifier} from "../interfaces/IPaymasterVerifier.sol";
 import {ICrossL2Prover} from "@vibc-core-smart-contracts/contracts/interfaces/ICrossL2Prover.sol";
 
+import {console} from "forge-std/console.sol";
+
 /**
  * @title CABPaymaster
  * @dev A paymaster used in chain abstracted balance to sponsor the gas fee and tokens cross-chain.
@@ -96,6 +98,7 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         // can't use userOp.hash(), since it contains also the paymasterAndData itself.
         address sender = userOp.getSender();
         (,, bytes calldata signature) = parsePaymasterAndData(userOp.paymasterAndData);
+
         (bytes calldata repayTokenData, bytes calldata sponsorTokenData,) = parsePaymasterSignature(signature);
 
         return keccak256(
@@ -104,9 +107,8 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
                 userOp.nonce,
                 keccak256(userOp.initCode),
                 keccak256(userOp.callData),
-                userOp.accountGasLimits,
-                keccak256(abi.encode(repayTokenData, sponsorTokenData)), // SponsorToken[]
-                uint256(bytes32(userOp.paymasterAndData[PAYMASTER_VALIDATION_GAS_OFFSET:PAYMASTER_DATA_OFFSET])),
+                keccak256(abi.encode(repayTokenData, sponsorTokenData)),
+                bytes32(userOp.paymasterAndData[PAYMASTER_VALIDATION_GAS_OFFSET:PAYMASTER_DATA_OFFSET]),
                 userOp.preVerificationGas,
                 userOp.gasFees,
                 block.chainid,
@@ -138,9 +140,9 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
             IERC20(sponsorToken.token).approve(sponsorToken.spender, sponsorToken.amount);
         }
 
-        // check the invoice
         bytes32 invoiceId =
             invoiceManager.getInvoiceId(userOp.getSender(), address(this), userOp.nonce, block.chainid, repayTokens);
+
         bytes32 hash = MessageHashUtils.toEthSignedMessageHash(getHash(userOp, validUntil, validAfter));
 
         // don't revert on signature failure: return SIG_VALIDATION_FAILED
