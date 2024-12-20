@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IVault} from "./IVault.sol";
+import {IYieldVault} from "./IYieldVault.sol";
 
 /**
  * @title Interface for the VaultManager contract.
@@ -43,6 +44,14 @@ interface IVaultManager {
      * @param amounts The amounts of tokens that were withdrawn.
      */
     event WithdrawSponsorToken(address indexed account, IVault[] vaults, uint256[] amounts);
+
+    /**
+     * @notice Emitted when a deposit to yield is made.
+     * @param account The account that made the deposit.
+     * @param vault The vault that was deposited into.
+     * @param shares The amount of shares that was issued.
+     */
+    event DepositToYield(address indexed account, IYieldVault indexed vault, uint256 shares);
 
     /// @notice Struct to represent the withdrawal request.
     struct Withdrawal {
@@ -87,6 +96,13 @@ interface IVaultManager {
      * @param withdrawalIds The IDs of the withdrawals to complete.
      */
     function completeWithdrawals(bytes32[] calldata withdrawalIds) external;
+
+    /**
+     * @notice Deposit the tokens from yield vault into the Yield strategy.
+     * @param vault The Yield Vault to deposit into.
+     * @return shares The amount of shares rewarded to the depositer.
+     */
+    function depositToYield(IYieldVault vault) external returns (uint256);
 
     /**
      * @notice Withdraw the specified amount of tokens to the receiver.
