@@ -12,7 +12,7 @@ import {InvoiceManager} from "../src/core/InvoiceManager.sol";
 import {IVault} from "../src/interfaces/IVault.sol";
 import {CheckAaveTokenStatus} from "../script/auxiliary/checkAaveTokenStatus.s.sol";
 
-contract DeployAndTestSepoliaVaults is Test, Script, CheckAaveTokenStatus {
+contract DeployAndTestAaveVaults is Test, Script, CheckAaveTokenStatus {
     address internal deployer;
     address internal owner;
     VaultManager internal vaultManager;
@@ -59,6 +59,16 @@ contract DeployAndTestSepoliaVaults is Test, Script, CheckAaveTokenStatus {
                 )
             );
         }
+    }
+
+    function testIsAaveToken() public {
+        bool tokenIsActive = isAaveToken(protocolDataProvider, address(underlyingToken));
+        assertTrue(tokenIsActive, "Underlying token is not active in Aave");
+    }
+
+    function testGetATokenAddress() public {
+        address aTokenAddress = getATokenAddress(protocolDataProvider, address(underlyingToken));
+        assertTrue(aTokenAddress != address(underlyingToken), "aToken address is invalid");
     }
 
     function testE2EAaveVault() public {
