@@ -35,7 +35,7 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         ICrossL2Prover _crossL2Prover,
         address _verifyingSigner,
         address _owner
-    ) BasePaymaster(_entryPoint, _owner) {
+    ) BasePaymaster(_entryPoint) {
         invoiceManager = _invoiceManager;
         crossL2Prover = _crossL2Prover;
         verifyingSigner = _verifyingSigner;

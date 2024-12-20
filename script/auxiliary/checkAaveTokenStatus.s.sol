@@ -23,4 +23,17 @@ contract CheckAaveTokenStatus is Script {
 
         return isActive;
     }
+
+    function getATokenAddress(address protocolDataProvider, address token) public view returns (address aToken) {
+        AaveProtocolDataProvider dataProvider = AaveProtocolDataProvider(protocolDataProvider);
+
+        // Fetch the aToken address
+        (aToken,,) = dataProvider.getReserveTokensAddresses(token);
+
+        console.log("Underlying Token:", token, "aToken Address:", aToken);
+
+        require(aToken != address(0), "Invalid aToken: Token not listed in Aave");
+
+        return aToken;
+    }
 }
