@@ -11,6 +11,7 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/U
 import {IInvoiceManager} from "../interfaces/IInvoiceManager.sol";
 import {IVault} from "../interfaces/IVault.sol";
 import {IVaultManager} from "../interfaces/IVaultManager.sol";
+import {IYieldVault} from "../interfaces/IYieldVault.sol";
 
 contract VaultManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgradeable, IVaultManager {
     using SafeERC20 for IERC20;
@@ -135,6 +136,23 @@ contract VaultManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardUpg
             withdrawal.completed = true;
             emit WithdrawalCompleted(msg.sender, withdrawal.vaults, withdrawal.amounts, withdrawalId);
         }
+    }
+
+    /// @inheritdoc IVaultManager
+    function depositToYield(IYieldVault vault)
+        external
+        override
+        nonReentrant
+        onlyRegisteredVault(vault)
+        returns (uint256 newShares)
+    {
+        // deposit the tokens from the yield vault into the yield strategy
+        newShares = vault.depositToYield();
+
+        // add the shares to the yield depositer
+        _addShare(msg.sender, vault, newShares);
+
+        emit DepositToYield(msg.sender, vault, newShares);
     }
 
     /// @inheritdoc IVaultManager
