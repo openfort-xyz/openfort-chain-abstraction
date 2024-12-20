@@ -68,12 +68,10 @@ contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint, CheckAa
         for (uint256 i = 0; i < tokens.length; i++) {
             address token = tokens[i];
 
-            // Check if the token is deployed
             if (token.code.length == 0) {
                 revert("Token not deployed");
             }
 
-            // Deploy BaseVault for the token
             BaseVault baseVault = BaseVault(
                 payable(
                     new UpgradeableOpenfortProxy{salt: versionSalt}(
@@ -87,7 +85,6 @@ contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint, CheckAa
             console.log("BaseVault Address", address(baseVault));
             vaultManager.addVault(baseVault);
 
-            // If the token is active in Aave, deploy AaveVault
             if (isAaveToken(protocolDataProvider, token)) {
                 address aTokenAddress = getATokenAddress(protocolDataProvider, address(token));
                 AaveVault aaveVault = AaveVault(
