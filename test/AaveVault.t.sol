@@ -71,6 +71,7 @@ contract DeployAndTestAaveVaults is Test, Script, CheckAaveTokenStatus {
         assertTrue(aTokenAddress != address(underlyingToken), "aToken address is invalid");
     }
 
+    // E2E test for a user deposit and withdrawal, make time advance to check that yield is generated
     function testE2EAaveVault() public {
         vm.startPrank(owner);
 
@@ -124,6 +125,64 @@ contract DeployAndTestAaveVaults is Test, Script, CheckAaveTokenStatus {
         assertGt(yieldEarned, 0, "No yield earned");
         assertEq(finalDeployerDAIBalance, initialDeployerDAIBalance + yieldEarned, "Incorrect final DAI balance");
 
+        vm.stopPrank();
+    }
+
+    function testSharesDistribution() public {
+        vm.startPrank(owner);
+
+        vaultManager.addVault(aaveVault);
+        assertTrue(vaultManager.registeredVaults(aaveVault), "Vault was not registered");
+
+        uint256 ownerDeposit = 100 * 10 ** 18; // 100 DAI
+        underlyingToken.approve(address(vaultManager), ownerDeposit);
+        vaultManager.deposit(underlyingToken, aaveVault, ownerDeposit, true);
+
+        uint256 ownerShares = vaultManager.vaultShares(owner, aaveVault);
+        assertEq(ownerShares, ownerDeposit, "Owner shares mismatch after deposit");
+
+        vm.stopPrank();
+
+        address user = 0x60C7A23B85903EE6B5598e2800865E0AC35d94f9;
+        uint256 userInitialBalance = underlyingToken.balanceOf(user);
+
+        vm.startPrank(user);
+        underlyingToken.transfer(user, ownerDeposit / 2);
+        underlyingToken.approve(address(vaultManager), ownerDeposit / 2);
+        vaultManager.deposit(underlyingToken, aaveVault, ownerDeposit / 2, true);
+
+        uint256 userShares = vaultManager.vaultShares(user, aaveVault);
+        assertEq(userShares, ownerDeposit / 2, "User shares mismatch after deposit");
+
+        uint256 totalShares = aaveVault.totalShares();
+        assertEq(totalShares, ownerShares + userShares, "Total shares mismatch");
+
+        uint256 withdrawLockBlock = vaultManager.withdrawLockBlock();
+        vm.warp(block.timestamp + 355 days);
+        vm.roll(block.number + withdrawLockBlock + 10);
+
+        uint256 withdrawAmount = 10 * 10 ** 18;
+        uint256 sharesWithdrawAmount = aaveVault.underlyingToShares(withdrawAmount);
+
+        IVault[] memory vaults = new IVault[](1);
+        vaults[0] = aaveVault;
+
+        uint256[] memory sharesToWithdraw = new uint256[](1);
+        sharesToWithdraw[0] = sharesWithdrawAmount;
+
+        bytes32 withdrawalId = vaultManager.queueWithdrawals(vaults, sharesToWithdraw, user);
+        vm.roll(block.number + withdrawLockBlock + 12);
+
+        bytes32[] memory withdrawalIds = new bytes32[](1);
+        withdrawalIds[0] = withdrawalId;
+
+        vaultManager.completeWithdrawals(withdrawalIds);
+
+        uint256 userFinalBalance = underlyingToken.balanceOf(user);
+
+        // should do more precise calculations, however this ensure that user wants to withdraw 10 Dai
+        // (initial deposit 100 Dai) and when withdraws its balance is greater then the initial.
+        assertGt(userFinalBalance + 90 * 10 ** 18, userInitialBalance, "Yield was not earned on withdrawal");
         vm.stopPrank();
     }
 }
