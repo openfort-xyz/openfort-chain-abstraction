@@ -61,7 +61,7 @@ contract DeployAndTestSepoliaVaults is Test, Script, CheckAaveTokenStatus {
         }
     }
 
-    function E2EtestAaveVault() public {
+    function testE2EAaveVault() public {
         vm.startPrank(owner);
 
         uint256 initialDeployerDAIBalance = underlyingToken.balanceOf(deployer);
