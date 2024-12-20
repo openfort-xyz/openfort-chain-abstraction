@@ -18,9 +18,6 @@ import {IPool} from "aave-v3-origin/core/contracts/interfaces/IPool.sol";
 
 import {ICrossL2Prover} from "@vibc-core-smart-contracts/contracts/interfaces/ICrossL2Prover.sol";
 
-// import {IL2Pool} from "aave-v3-origin/core/contracts/interfaces/IL2Pool.sol";
-// import {L2Encoder} from "aave-v3-origin/core/contracts/misc/L2Encoder.sol";
-
 // forge script script/deployChainAbstractionSetup.s.sol:DeployChainAbstractionSetup "[0xusdc, 0xusdt]" --sig "run(address[])" --via-ir --rpc-url=127.0.0.1:854
 
 contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint, CheckAaveTokenStatus {
