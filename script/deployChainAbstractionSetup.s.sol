@@ -14,6 +14,7 @@ import {AaveVault} from "../src/vaults/AaveVault.sol";
 import {VaultManager} from "../src/vaults/VaultManager.sol";
 import {CABPaymaster} from "../src/paymasters/CABPaymaster.sol";
 import {InvoiceManager} from "../src/core/InvoiceManager.sol";
+import {IPool} from "aave-v3-origin/core/contracts/interfaces/IPool.sol";
 
 import {ICrossL2Prover} from "@vibc-core-smart-contracts/contracts/interfaces/ICrossL2Prover.sol";
 
@@ -33,7 +34,6 @@ contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint, CheckAa
 
     address internal aavePool = vm.envAddress("AAVE_POOL");
     address internal protocolDataProvider = vm.envAddress("AAVE_DATA_PROVIDER");
-    address internal l2Encoder = vm.envAddress("L2_ENCODER");
 
     function run(address[] calldata tokens) public {
         if (tokens.length == 0) {
@@ -90,6 +90,7 @@ contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint, CheckAa
 
             // If the token is active in Aave, deploy AaveVault
             if (isAaveToken(protocolDataProvider, token)) {
+                address aTokenAddress = getATokenAddress(protocolDataProvider, address(token));
                 AaveVault aaveVault = AaveVault(
                     payable(
                         new UpgradeableOpenfortProxy{salt: versionSalt}(
@@ -98,8 +99,8 @@ contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint, CheckAa
                                 AaveVault.initialize.selector,
                                 IVaultManager(address(vaultManager)),
                                 IERC20(token),
-                                aavePool,
-                                l2Encoder
+                                IERC20(aTokenAddress),
+                                IPool(aavePool)
                             )
                         )
                     )
