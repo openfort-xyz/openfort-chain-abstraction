@@ -1,6 +1,6 @@
 
 import { Address, concat, encodeAbiParameters, getAddress, Hex, keccak256, numberToHex, pad, toHex } from "viem";
-import { publicClients } from "./clients";
+import { publicClients } from "./viemClients";
 import { chainIDs, paymasters, supportedChain, tokenA, vaultA } from "./constants";
 import { PackedUserOperation } from "viem/account-abstraction";
 

@@ -1,5 +1,6 @@
 import { Command } from "commander";
-import { bundlerClients, publicClients, walletClients } from "./clients";
+import { polymerProverClient } from "./polymerProverClient";
+import { bundlerClients, publicClients, walletClients } from "./viemClients";
 import { isValidChain, demoNFTs, tokenA, paymasters, ownerAccount, chainIDs, V7SimpleAccountFactoryAddress, openfortContracts } from "./constants";
 import { Address, getAddress, Hex, parseAbi } from "viem";
 import { toSimpleSmartAccount } from "./SimpleSmartAccount";
@@ -7,6 +8,8 @@ import {
   entryPoint07Address,
   getUserOperationHash,
 } from "viem/account-abstraction";
+
+import util from "util";
 
 const figlet = require("figlet");
 const program = new Command();
@@ -98,7 +101,7 @@ program
     })
 
     const userOpHash = await getUserOperationHash({
-      chainId: chainIDs[chain], 
+      chainId: chainIDs[chain],
       entryPointAddress: entryPoint07Address,
       entryPointVersion: "0.7",
       userOperation: {
@@ -199,7 +202,7 @@ program
     });
 
     const userOpHash = await getUserOperationHash({
-      chainId: chainIDs[chain], 
+      chainId: chainIDs[chain],
       entryPointAddress: entryPoint07Address,
       entryPointVersion: "0.7",
       userOperation: {
@@ -219,48 +222,62 @@ program
     console.log(`UserOp sent: ${hash}`);
   });
 
-    program
-      .command("get-userop-execution-proof")
-      .description("call Polymer API to get a userOp execution proof")
-      .action(async () => {
-        console.log("WIP");
-      });
+program
+  .command("request-receipt-proof")
+  .description("request receipt proof from Polymer")
+  .requiredOption("-s, --src-chain <src-chain-id>", "source chain id")
+  .requiredOption("-d, --dst-chain <dst-chain-id>", "destination chain id")
+  .requiredOption("-b, --src-block <src-block-number>", "source block number")
+  .requiredOption("-t, --tx-index <tx-index>", "transaction index")
+  .action(async ({ srcChain, dstChain, srcBlock, txIndex }) => {
+    const jobId = await polymerProverClient.receiptRequestProof(srcChain, dstChain, srcBlock, txIndex);
+    console.log(`jobId: ${jobId}`);
+  });
 
-    program
-      .command("mint-token")
-      .description("mint amount of token to a recipient")
-      .addOption(
-        new Command()
-          .createOption("-c, --chain <chain>", "choose chain")
-          .choices(["base", "optimism"]),
-      )
-      .requiredOption("-t, --token <token>", "token address")
-      .requiredOption("-a, --amount <amount>", "amount to send")
-      .requiredOption("-r, --recipient <recipient>", "recipient address")
-      .action(async ({ chain, token, amount, recipient }) => {
-        if (!isValidChain(chain)) {
-          throw new Error(`Unsupported chain: ${chain}`);
-        }
-        const walletClient = walletClients[chain];
+program
+  .command("query-receipt-proof")
+  .description("query receipt proof with jobId from Polymer")
+  .requiredOption("-j, --job-id <job-id>", "job id")
+  .action(async ({ jobId }) => {
+    const proofResponse = await polymerProverClient.queryReceiptProof(jobId);
+    console.log(util.inspect(proofResponse, { showHidden: true, depth: null, colors: true }));
+  });
 
-        const hash = await walletClient.writeContract({
-          address: token,
-          abi: parseAbi(["function mint(address, uint256)"]),
-          functionName: "mint",
-          args: [recipient, amount],
-          chain: walletClient.chain,
-          account: walletClient.account || null,
-        });
-        console.log(`Sending ${amount} tokens to ${recipient} on ${chain}`);
-        console.log(`Transaction sent: ${hash}`);
-      });
+program
+  .command("mint-token")
+  .description("mint amount of token to a recipient")
+  .addOption(
+    new Command()
+      .createOption("-c, --chain <chain>", "choose chain")
+      .choices(["base", "optimism"]),
+  )
+  .requiredOption("-t, --token <token>", "token address")
+  .requiredOption("-a, --amount <amount>", "amount to send")
+  .requiredOption("-r, --recipient <recipient>", "recipient address")
+  .action(async ({ chain, token, amount, recipient }) => {
+    if (!isValidChain(chain)) {
+      throw new Error(`Unsupported chain: ${chain}`);
+    }
+    const walletClient = walletClients[chain];
 
-    program
-      .command("refund-paymaster")
-      .description("call invoice manager to refund paymaster")
-      .requiredOption("-i, --invoice-id <invoice-id>", "invoice id")
-      .action(async ({ invoiceId }) => {
-        console.log("WIP");
-      });
+    const hash = await walletClient.writeContract({
+      address: token,
+      abi: parseAbi(["function mint(address, uint256)"]),
+      functionName: "mint",
+      args: [recipient, amount],
+      chain: walletClient.chain,
+      account: walletClient.account || null,
+    });
+    console.log(`Sending ${amount} tokens to ${recipient} on ${chain}`);
+    console.log(`Transaction sent: ${hash}`);
+  });
 
-    program.parse();
+program
+  .command("refund-paymaster")
+  .description("call invoice manager to refund paymaster")
+  .requiredOption("-i, --invoice-id <invoice-id>", "invoice id")
+  .action(async ({ invoiceId }) => {
+    console.log("WIP");
+  });
+
+program.parse();
