@@ -44,7 +44,7 @@ interface InvoiceIO {
 
 /**
  * InvoiceManager reads and writes invoices to a JSON file.
- * FOR DEMO PURPOSES ONLY - implement InvoiceIO to use a real database in production.
+ * FOR DEMO PURPOSES ONLY - implement InvoiceIO to use a database in production.
  */
 
 class InvoiceManager implements InvoiceIO {

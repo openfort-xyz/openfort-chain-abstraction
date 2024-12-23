@@ -58,10 +58,7 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         if (invoiceId != _invoiceId) return false;
 
         (uint256 logIndex, bytes memory proof) = abi.decode(_proof, (uint256, bytes));
-
-        (string memory proofChainId, address emittingContract, bytes[] memory topics, bytes memory unindexedData) =
-            crossL2Prover.validateEvent(logIndex, proof);
-
+        (,,bytes[] memory topics,) = crossL2Prover.validateEvent(logIndex, proof);
         bytes[] memory expectedTopics = new bytes[](2);
         expectedTopics[0] = abi.encode(InvoiceCreated.selector);
         expectedTopics[1] = abi.encode(invoiceId);

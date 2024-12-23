@@ -12,7 +12,7 @@ import {
   openfortContracts,
   vaultA,
 } from "./constants";
-import { Address, getAddress, Hex, parseAbi } from "viem";
+import { Address, encodeAbiParameters, getAddress, Hex, parseAbi } from "viem";
 import { toSimpleSmartAccount } from "./SimpleSmartAccount";
 import {
   entryPoint07Address,
@@ -323,7 +323,14 @@ program
       throw new Error(`Unsupported chain: ${chain}`);
     }
     const invoiceWithRepayTokens = await invoiceManager.readInvoice(invoiceId);
+
     const walletClient = walletClients[chain];
+
+    // since logIndex is the index of the log within the tx
+    // in can be hardcoded for this demo
+    // TODO: validate receipt + parselog to implement refund batcning
+    const logIndex = BigInt(12);
+    const proofWithLogIndex = encodeAbiParameters([{ type: "uint256" }, { type: "bytes" }], [logIndex, proof]);
 
     const hash = await walletClient.writeContract({
       address: openfortContracts[chain].invoiceManager,
@@ -333,7 +340,7 @@ program
         "function repay(bytes32 invoiceId, InvoiceWithRepayTokens invoice, bytes proof)",
       ]),
       functionName: "repay",
-      args: [invoiceId, invoiceWithRepayTokens, proof],
+      args: [invoiceId, invoiceWithRepayTokens, proofWithLogIndex],
       chain: walletClient.chain,
       account: walletClient.account || null,
     });
