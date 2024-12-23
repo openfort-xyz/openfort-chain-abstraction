@@ -60,8 +60,6 @@ contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardU
         delete cabPaymasters[msg.sender];
     }
 
-    // bytes calldata receiptIndex, bytes calldata receiptRLPEncodedBytes
-
     /// @inheritdoc IInvoiceManager
     function createInvoice(uint256 nonce, address paymaster, bytes32 invoiceId) external override {
         // check if the invoice already exists

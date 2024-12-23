@@ -63,7 +63,7 @@ interface IInvoiceManager {
         address account;
         uint256 nonce;
         address paymaster;
-        uint256 sponsorChainId;
+        string sponsorChainId;
     }
 
     /// @notice Struct to represent the invoice.
@@ -71,7 +71,7 @@ interface IInvoiceManager {
         address account;
         uint256 nonce;
         address paymaster;
-        uint256 sponsorChainId;
+        string sponsorChainId;
         RepayTokenInfo[] repayTokenInfos;
     }
 
@@ -141,7 +141,7 @@ interface IInvoiceManager {
         address account,
         address paymaster,
         uint256 nonce,
-        uint256 sponsorChainId,
+        string sponsorChainId,
         RepayTokenInfo[] calldata repayTokenInfos
     ) external view returns (bytes32);
 }

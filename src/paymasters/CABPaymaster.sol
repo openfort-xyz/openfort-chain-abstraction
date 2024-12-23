@@ -13,7 +13,7 @@ import {IVault} from "../interfaces/IVault.sol";
 import {IPaymasterVerifier} from "../interfaces/IPaymasterVerifier.sol";
 import {ICrossL2Prover} from "@vibc-core-smart-contracts/contracts/interfaces/ICrossL2Prover.sol";
 
-import {Bytes} from "optimism/libraries/Bytes.sol";
+import {LibBytes} from "@solady/src/utils/LibBytes.sol";
 
 /**
  * @title CABPaymaster
@@ -63,7 +63,21 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         (string memory proofChainId, address emittingContract, bytes[] memory topics, bytes memory unindexedData) =
             prover.validateEvent(logIndex, proof);
 
-        // TODO: check if event matches InvoiceCreated(invoiceId)
+        if (!Bytes.equal(bytes(abi.encodePacked(_invoice.sponsorChainId)), bytes(proofChainId))) {
+            revert invalidChainId();
+        }
+        if (emittingContract != expectedEmitter) {
+            revert invalidEventSender();
+        }
+
+        if (!Bytes.equal(abi.encode(topics), abi.encode(expectedTopics))) {
+            revert invalidCounterpartyEvent();
+        }
+        if (!Bytes.equal(unindexedData, expectedUnindexedData)) {
+            revert invalidCounterpartyEvent();
+        }
+
+        emit InvoiceVerified(invoiceId);
         return true;
     }
 
