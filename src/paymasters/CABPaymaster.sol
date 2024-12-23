@@ -13,6 +13,7 @@ import {IVault} from "../interfaces/IVault.sol";
 import {IPaymasterVerifier} from "../interfaces/IPaymasterVerifier.sol";
 import {ICrossL2Prover} from "@vibc-core-smart-contracts/contracts/interfaces/ICrossL2Prover.sol";
 
+import {Bytes} from "optimism/libraries/Bytes.sol";
 
 /**
  * @title CABPaymaster
@@ -59,9 +60,8 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
 
         (uint256 logIndex, bytes memory proof) = abi.decode(_proof, (uint256, bytes));
 
-        if (!crossL2Prover.validateEvent(logIndex, proof)) {
-            return false;
-        }
+        (string memory proofChainId, address emittingContract, bytes[] memory topics, bytes memory unindexedData) =
+            prover.validateEvent(logIndex, proof);
 
         // TODO: check if event matches InvoiceCreated(invoiceId)
         return true;
