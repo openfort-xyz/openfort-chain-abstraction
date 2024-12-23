@@ -9,7 +9,7 @@ import {IInvoiceManager} from "./IInvoiceManager.sol";
  */
 interface IPaymasterVerifier {
     /// @notice Emitted when an invoice is created.
-    event InvoiceCreated(bytes32 invoiceId);
+    event InvoiceCreated(bytes32 indexed invoiceId);
 
     /// @notice The struct of the sponsor token.
     struct SponsorToken {

@@ -280,4 +280,27 @@ program
     console.log("WIP");
   });
 
+
+program
+  .command("get-invoices")
+  .description("get invoices from paymaster")
+  .addOption(
+    new Command()
+      .createOption("-c, --chain <chain>", "choose chain")
+      .choices(["base", "optimism"]),
+  )
+  .action(async ({ chain }) => {
+    if (!isValidChain(chain)) {
+      throw new Error(`Unsupported chain: ${chain}`);
+    }
+    const paymaster = openfortContracts[chain].paymaster;
+    console.log({ paymaster });
+    console.log(parseAbi(["event InvoiceCreated(bytes32 indexed invoiceId)"]));
+    const publicClient = publicClients[chain];
+    const logs = await publicClient.getLogs({
+      address: paymaster,
+    });
+    console.log(util.inspect(logs, { showHidden: true, depth: null, colors: true }));
+  });
+
 program.parse();

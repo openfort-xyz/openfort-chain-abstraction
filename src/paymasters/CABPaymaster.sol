@@ -13,7 +13,6 @@ import {IVault} from "../interfaces/IVault.sol";
 import {IPaymasterVerifier} from "../interfaces/IPaymasterVerifier.sol";
 import {ICrossL2Prover} from "@vibc-core-smart-contracts/contracts/interfaces/ICrossL2Prover.sol";
 
-import {console} from "forge-std/console.sol";
 
 /**
  * @title CABPaymaster
@@ -54,19 +53,13 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
             _invoice.account, _invoice.paymaster, _invoice.nonce, _invoice.sponsorChainId, _invoice.repayTokenInfos
         );
 
+        // validateEvent(uint256 ,logIndex, bytes calldata proof) returns (bytes32 chainId, address emittingContract, bytes[] memory topics, bytes memory unindexedData)
+
         if (invoiceId != _invoiceId) return false;
 
-        // _proof is an opaque bytes object to potentialy support different proof systems
-        // This paymasterVerifier supports Polymer proof system
-        (
-            bytes memory receiptIndex,
-            bytes memory receiptRLPEncodedBytes,
-            uint256 logIndex,
-            bytes memory logBytes,
-            bytes memory proof
-        ) = abi.decode(_proof, (bytes, bytes, uint256, bytes, bytes));
+        (uint256 logIndex, bytes memory proof) = abi.decode(_proof, (uint256, bytes));
 
-        if (!crossL2Prover.validateEvent(receiptIndex, receiptRLPEncodedBytes, logIndex, logBytes, proof)) {
+        if (!crossL2Prover.validateEvent(logIndex, proof)) {
             return false;
         }
 
