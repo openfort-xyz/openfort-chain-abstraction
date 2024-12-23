@@ -1,6 +1,6 @@
 
 import { Address, concat, encodeAbiParameters, getAddress, Hex, keccak256, numberToHex, pad, toHex } from "viem";
-import { publicClients } from "./clients";
+import { publicClients } from "./viemClients";
 import { chainIDs, paymasters, supportedChain, tokenA, vaultA } from "./constants";
 import { PackedUserOperation } from "viem/account-abstraction";
 
@@ -28,10 +28,6 @@ export function computeHash(
         pad(toHex(paymasterVerificationGasLimit || 0n), { size: 16 }),
         pad(toHex(paymasterPostOpGasLimit || 0n), { size: 16}),
     ])
-    const validUntilValidAfter = encodeAbiParameters(
-        [{ type: "uint48", name: "validUntil" }, { type: "uint48", name: "validAfter" }],
-        [Number(validUntil), Number(validAfter)]
-    );
     const encodedData = encodeAbiParameters(
         [
             { type: "address", name: "sender" },
@@ -64,8 +60,7 @@ export function computeHash(
             Number(validAfter)
         ]
     )
-    const userOpHash = keccak256(encodedData);
-    return userOpHash;
+    return keccak256(encodedData);
 }
 
 export function getRepayToken(sender: Address) {
