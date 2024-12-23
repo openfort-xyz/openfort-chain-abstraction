@@ -1,7 +1,17 @@
 import { Command } from "commander";
 import { polymerProverClient } from "./polymerProverClient";
 import { bundlerClients, publicClients, walletClients } from "./viemClients";
-import { isValidChain, demoNFTs, tokenA, paymasters, ownerAccount, chainIDs, V7SimpleAccountFactoryAddress, openfortContracts } from "./constants";
+import {
+  isValidChain,
+  demoNFTs,
+  tokenA,
+  paymasters,
+  ownerAccount,
+  chainIDs,
+  V7SimpleAccountFactoryAddress,
+  openfortContracts,
+  vaultA,
+} from "./constants";
 import { Address, getAddress, Hex, parseAbi } from "viem";
 import { toSimpleSmartAccount } from "./SimpleSmartAccount";
 import {
@@ -10,6 +20,7 @@ import {
 } from "viem/account-abstraction";
 
 import util from "util";
+import { invoiceManager } from "./Invoice";
 
 const figlet = require("figlet");
 const program = new Command();
@@ -96,9 +107,9 @@ program
           abi: parseAbi(["function deposit(address, address, uint256, bool)"]),
           functionName: "deposit",
           args: [getAddress(token), getAddress(vault), amount, false],
-        }
-      ]
-    })
+        },
+      ],
+    });
 
     const userOpHash = await getUserOperationHash({
       chainId: chainIDs[chain],
@@ -122,7 +133,6 @@ program
     console.log(`UserOp sent: ${hash}`);
   });
 
-
 program
   .command("get-chain-abstraction-balance")
   .description("get chain abstraction balance")
@@ -135,10 +145,7 @@ program
     if (!isValidChain(chain)) {
       throw new Error(`Unsupported chain: ${chain}`);
     }
-
-    const walletClient = walletClients[chain];
-    const publicClient = publicClients[chain];
-
+    // TODO: read balance in all vaults
     console.log("WIP");
   });
 
@@ -184,21 +191,22 @@ program
           to: tokenA[chain] as Address,
           abi: parseAbi(["function approve(address, uint256)"]),
           functionName: "approve",
-          args: [demoNFTs[chain] as Address, nftPrice]
+          args: [demoNFTs[chain] as Address, nftPrice],
         },
         {
           to: demoNFTs[chain] as Address,
           abi: parseAbi(["function mint(string)"]),
           functionName: "mint",
           args: [ipfsHash],
-        }
+        },
       ],
       verificationGasLimit: 1000000n,
       postVerificationGasLimit: 1000000n,
       preVerificationGas: 1000000n,
       callGasLimit: 1000000n,
       /** Concatenation of {@link UserOperation`verificationGasLimit`} (16 bytes) and {@link UserOperation`callGasLimit`} (16 bytes) */
-      accountGasLimits: `0x${1000000n.toString(16)}${1000000n.toString(16)}` as Hex,
+      accountGasLimits:
+        `0x${1000000n.toString(16)}${1000000n.toString(16)}` as Hex,
     });
 
     const userOpHash = await getUserOperationHash({
@@ -220,6 +228,23 @@ program
       account: account,
     });
     console.log(`UserOp sent: ${hash}`);
+    //  TODO: support multiple source chains
+    const srcChain = chain === "base" ? "optimism" : "base";
+    const invoiceId = await invoiceManager.writeInvoice({
+      account: accountAddress,
+      nonce: BigInt(unsignedUserOp.nonce),
+      paymaster: paymasters[chain] as Address,
+      sponsorChainId: BigInt(chainIDs[chain]),
+
+      repayTokenInfos: [
+        {
+          vault: vaultA[srcChain] as Address,
+          amount: nftPrice,
+          chainId: BigInt(chainIDs[srcChain]),
+        },
+      ],
+    });
+    console.log(`Invoice ID: ${invoiceId}`);
   });
 
 program
@@ -230,7 +255,12 @@ program
   .requiredOption("-b, --src-block <src-block-number>", "source block number")
   .requiredOption("-t, --tx-index <tx-index>", "transaction index")
   .action(async ({ srcChain, dstChain, srcBlock, txIndex }) => {
-    const jobId = await polymerProverClient.receiptRequestProof(srcChain, dstChain, srcBlock, txIndex);
+    const jobId = await polymerProverClient.receiptRequestProof(
+      srcChain,
+      dstChain,
+      srcBlock,
+      txIndex,
+    );
     console.log(`jobId: ${jobId}`);
   });
 
@@ -240,7 +270,13 @@ program
   .requiredOption("-j, --job-id <job-id>", "job id")
   .action(async ({ jobId }) => {
     const proofResponse = await polymerProverClient.queryReceiptProof(jobId);
-    console.log(util.inspect(proofResponse, { showHidden: true, depth: null, colors: true }));
+    console.log(
+      util.inspect(proofResponse, {
+        showHidden: true,
+        depth: null,
+        colors: true,
+      }),
+    );
   });
 
 program
@@ -275,15 +311,40 @@ program
 program
   .command("refund-paymaster")
   .description("call invoice manager to refund paymaster")
+  .addOption(
+    new Command()
+      .createOption("-c, --chain <chain>", "choose chain")
+      .choices(["base", "optimism"]),
+  )
+  .requiredOption("-p, --proof <proof>", "proof")
   .requiredOption("-i, --invoice-id <invoice-id>", "invoice id")
-  .action(async ({ invoiceId }) => {
-    console.log("WIP");
-  });
+  .action(async ({ chain, proof, invoiceId }) => {
+    if (!isValidChain(chain)) {
+      throw new Error(`Unsupported chain: ${chain}`);
+    }
+    const invoiceWithRepayTokens = await invoiceManager.readInvoice(invoiceId);
+    const walletClient = walletClients[chain];
 
+    const hash = await walletClient.writeContract({
+      address: openfortContracts[chain].invoiceManager,
+      abi: parseAbi([
+        "struct RepayTokenInfo { address vault; uint256 amount; uint256 chainId; }",
+        "struct InvoiceWithRepayTokens { address account; uint256 nonce; address paymaster; uint256 sponsorChainId; RepayTokenInfo[] repayTokenInfos; }",
+        "function repay(bytes32 invoiceId, InvoiceWithRepayTokens invoice, bytes proof)",
+      ]),
+      functionName: "repay",
+      args: [invoiceId, invoiceWithRepayTokens, proof],
+      chain: walletClient.chain,
+      account: walletClient.account || null,
+    });
+    console.log(`Transaction sent: ${hash}`);
+  });
 
 program
   .command("get-invoices")
-  .description("get invoices from paymaster")
+  .description(
+    "read blockchain to get invoices-id from paymaster contract events",
+  )
   .addOption(
     new Command()
       .createOption("-c, --chain <chain>", "choose chain")
@@ -294,13 +355,14 @@ program
       throw new Error(`Unsupported chain: ${chain}`);
     }
     const paymaster = openfortContracts[chain].paymaster;
-    console.log({ paymaster });
     console.log(parseAbi(["event InvoiceCreated(bytes32 indexed invoiceId)"]));
     const publicClient = publicClients[chain];
     const logs = await publicClient.getLogs({
       address: paymaster,
     });
-    console.log(util.inspect(logs, { showHidden: true, depth: null, colors: true }));
+    console.log(
+      util.inspect(logs, { showHidden: true, depth: null, colors: true }),
+    );
   });
 
 program.parse();
