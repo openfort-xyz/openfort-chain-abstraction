@@ -14,7 +14,6 @@ interface IPaymasterVerifier {
     /// @notice Emitted when an invoice is verified.
     event InvoiceVerified(bytes32 indexed invoiceId);
 
-
     /// @notice The struct of the sponsor token.
     struct SponsorToken {
         address token;

@@ -326,11 +326,14 @@ program
 
     const walletClient = walletClients[chain];
 
-    // since logIndex is the index of the log within the tx
-    // in can be hardcoded for this demo
+    // we can hardcode logIndex since it is the index of the log within the tx
     // TODO: validate receipt + parselog to implement refund batcning
     const logIndex = BigInt(12);
-    const proofWithLogIndex = encodeAbiParameters([{ type: "uint256" }, { type: "bytes" }], [logIndex, proof]);
+
+    const proofWithLogIndex = encodeAbiParameters(
+      [{ type: "uint256" }, { type: "bytes" }],
+      [logIndex, proof],
+    );
 
     const hash = await walletClient.writeContract({
       address: openfortContracts[chain].invoiceManager,
@@ -367,6 +370,7 @@ program
     const logs = await publicClient.getLogs({
       address: paymaster,
     });
+
     console.log(
       util.inspect(logs, { showHidden: true, depth: null, colors: true }),
     );

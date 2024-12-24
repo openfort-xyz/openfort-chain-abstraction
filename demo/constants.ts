@@ -29,7 +29,7 @@ export type OpenfortContracts = {
 
 export const openfortContracts: Record<supportedChain, OpenfortContracts> = {
   base: {
-    paymaster: "0xF6e64504ed56ec2725CDd0b3C1b23626D66008A2",
+    paymaster: "0x19b5CBF65ff1aAEB17e42f701E0AfeEFF0223244",
     invoiceManager: "0xE94b6B5346BF1E46daDDe0002148ec9d3b2778B4",
     vaultManager: "0x38c3c2d2BDdDBC2916d9c85638932f8Fd2F4a7fe",
     vaults: {
@@ -40,7 +40,7 @@ export const openfortContracts: Record<supportedChain, OpenfortContracts> = {
     },
   },
   optimism: {
-    paymaster: "0x7926E12044F7f29150F5250B1A335a145298308d",
+    paymaster: "0x892c3b4C86803EbfAfBECcE9220F3F49d801Fd8A",
     invoiceManager: "0xa3152B80759dfb0cB74009F4bB31b29d01e0e624",
     vaultManager: "0x9E6A6E55D9DbE20DF20A90C426724442C8D95481",
     vaults: {
@@ -53,7 +53,7 @@ export const openfortContracts: Record<supportedChain, OpenfortContracts> = {
 };
 
 export const paymasters = {
-  base: "0xF6e64504ed56ec2725CDd0b3C1b23626D66008A2",
+  base: "0x19b5CBF65ff1aAEB17e42f701E0AfeEFF0223244",
   optimism: "0x7926E12044F7f29150F5250B1A335a145298308d",
 };
 

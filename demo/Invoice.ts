@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getAddress } from "viem";
+import { encodePacked, getAddress } from "viem";
 import { encodeAbiParameters, toHex, keccak256, concat } from "viem";
 import fs from "fs/promises";
 import path from "path";
@@ -55,8 +55,7 @@ class InvoiceManager implements InvoiceIO {
   }
 
   async readInvoice(invoiceId: InvoiceId): Promise<InvoiceWithRepayTokens> {
-    const invoicesJson = await JSON.parse(this.invoicesPath);
-    const invoices = InvoicesSchema.parse(invoicesJson);
+    const invoices = await this.readInvoices();
     const invoice = invoices[invoiceId];
     if (!invoice) {
       throw new Error(`Invoice ID ${invoiceId} not found`);
@@ -82,7 +81,7 @@ class InvoiceManager implements InvoiceIO {
     }
   }
 
-  private getInvoiceId(invoice: InvoiceWithRepayTokens): InvoiceId {
+  getInvoiceId(invoice: InvoiceWithRepayTokens): InvoiceId {
     const repayTokensEncoded = encodeAbiParameters(
       [
         {
@@ -97,14 +96,16 @@ class InvoiceManager implements InvoiceIO {
       [invoice.repayTokenInfos],
     );
 
-    const packed = concat([
-      invoice.account,
-      invoice.paymaster,
-      toHex(invoice.nonce),
-      toHex(invoice.sponsorChainId),
-      repayTokensEncoded,
-    ]);
-
+    const packed = encodePacked(
+      ["address", "address", "uint256", "uint256", "bytes"],
+      [
+        invoice.account,
+        invoice.paymaster,
+        invoice.nonce,
+        invoice.sponsorChainId,
+        repayTokensEncoded,
+      ],
+    );
     return keccak256(packed) as InvoiceId;
   }
 
