@@ -134,7 +134,7 @@ interface IInvoiceManager {
      * @param paymaster The address of the paymaster.
      * @param nonce The nonce of the invoice.
      * @param sponsorChainId The chain ID of the sponsor.
-     * @param repayTokenInfos The tokens to repay.
+     * @param repayTokenData The encoded RepayTokenInfo[] to repay.
      * @return invoiceId The ID of the invoice.
      */
     function getInvoiceId(
@@ -142,6 +142,6 @@ interface IInvoiceManager {
         address paymaster,
         uint256 nonce,
         uint256 sponsorChainId,
-        RepayTokenInfo[] calldata repayTokenInfos
+        bytes calldata repayTokenData
     ) external view returns (bytes32);
 }

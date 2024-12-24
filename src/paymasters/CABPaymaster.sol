@@ -12,7 +12,6 @@ import {IInvoiceManager} from "../interfaces/IInvoiceManager.sol";
 import {IVault} from "../interfaces/IVault.sol";
 import {IPaymasterVerifier} from "../interfaces/IPaymasterVerifier.sol";
 import {ICrossL2Prover} from "@vibc-core-smart-contracts/contracts/interfaces/ICrossL2Prover.sol";
-
 import {LibBytes} from "@solady/utils/LibBytes.sol";
 
 /**
@@ -51,7 +50,11 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
     ) external virtual override returns (bool) {
         // Check if the invoiceId corresponds to the invoice
         bytes32 invoiceId = invoiceManager.getInvoiceId(
-            _invoice.account, _invoice.paymaster, _invoice.nonce, _invoice.sponsorChainId, _invoice.repayTokenInfos
+            _invoice.account,
+            _invoice.paymaster,
+            _invoice.nonce,
+            _invoice.sponsorChainId,
+            abi.encode(_invoice.repayTokenInfos)
         );
 
         if (invoiceId != _invoiceId) return false;
@@ -65,7 +68,6 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         if (!LibBytes.eq(abi.encode(topics), abi.encode(expectedTopics))) {
             return false;
         }
-
         emit InvoiceVerified(invoiceId);
         return true;
     }
@@ -128,7 +130,6 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
             parsePaymasterSignature(signature);
 
         (uint256 sponsorTokenLength, SponsorToken[] memory sponsorTokens) = parseSponsorTokenData(sponsorTokenData);
-        (, IInvoiceManager.RepayTokenInfo[] memory repayTokens) = parseRepayTokenData(repayTokenData);
 
         // revoke the approval at the end of userOp
         for (uint256 i = 0; i < sponsorTokenLength; i++) {
@@ -137,7 +138,7 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         }
 
         bytes32 invoiceId =
-            invoiceManager.getInvoiceId(userOp.getSender(), address(this), userOp.nonce, block.chainid, repayTokens);
+            invoiceManager.getInvoiceId(userOp.getSender(), address(this), userOp.nonce, block.chainid, repayTokenData);
 
         bytes32 hash = MessageHashUtils.toEthSignedMessageHash(getHash(userOp, validUntil, validAfter));
 
@@ -233,32 +234,6 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
             uint256 amount = uint256(bytes32(sponsorTokenData[offset + 40:offset + 72]));
 
             sponsorTokens[i] = SponsorToken(token, spender, amount);
-
-            unchecked {
-                i++;
-            }
-        }
-    }
-
-    function parseRepayTokenData(bytes calldata repayTokenData)
-        public
-        pure
-        returns (uint8 repayTokenLength, IInvoiceManager.RepayTokenInfo[] memory repayTokens)
-    {
-        repayTokenLength = uint8(bytes1(repayTokenData[0]));
-
-        // 1 byte: length
-        // length * 84 bytes: (20 bytes: vault address + 32 bytes chainID + 32 bytes amount)
-        require(repayTokenData.length == 1 + repayTokenLength * 84, "CABPaymaster: invalid repayTokenData length");
-
-        repayTokens = new IInvoiceManager.RepayTokenInfo[](repayTokenLength);
-        for (uint256 i = 0; i < uint256(repayTokenLength);) {
-            uint256 offset = 1 + i * 84;
-            address vault = address(bytes20(repayTokenData[offset:offset + 20]));
-            uint256 chainId = uint256(bytes32(repayTokenData[offset + 20:offset + 52]));
-            uint256 amount = uint256(bytes32(repayTokenData[offset + 52:offset + 84]));
-
-            repayTokens[i] = IInvoiceManager.RepayTokenInfo(IVault(vault), amount, chainId);
 
             unchecked {
                 i++;

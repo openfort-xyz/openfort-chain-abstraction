@@ -82,6 +82,7 @@ class InvoiceManager implements InvoiceIO {
   }
 
   getInvoiceId(invoice: InvoiceWithRepayTokens): InvoiceId {
+    console.log(invoice);
     const repayTokensEncoded = encodeAbiParameters(
       [
         {

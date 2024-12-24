@@ -327,8 +327,8 @@ program
 
     const walletClient = walletClients[chain];
 
-    // we can hardcode logIndex since it is the index of the log within the tx
-    // TODO: validate receipt + parselog to implement refund batcning
+    // we can hard  code logIndex since it is the index of the log within the tx
+    // TODO: validate receipt + parselog to implement refund batching
     const logIndex = BigInt(12);
 
     const proofWithLogIndex = encodeAbiParameters(

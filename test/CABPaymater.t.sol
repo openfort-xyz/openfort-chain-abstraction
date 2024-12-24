@@ -181,13 +181,15 @@ contract CABPaymasterTest is Test {
         (bytes memory context, uint256 validationData) =
             paymaster.validatePaymasterUserOp(userOp, userOpHash, type(uint256).max);
 
-        (, IInvoiceManager.RepayTokenInfo[] memory repayTokens) = paymaster.parseRepayTokenData(repayTokensBytes);
         // validate postOp
         // This is the event that we must track on dest chain and prove on source chain with Polymer proof system
+
+        // Calculate the expected invoiceId
+        bytes32 expectedInvoiceId =
+            invoiceManager.getInvoiceId(rekt, address(paymaster), userOp.nonce, BASE_SEPOLIA_CHAIN_ID, repayTokensBytes);
+        console.logBytes32(expectedInvoiceId);
         vm.expectEmit(true, true, true, true);
-        emit IPaymasterVerifier.InvoiceCreated(
-            invoiceManager.getInvoiceId(rekt, address(paymaster), userOp.nonce, BASE_SEPOLIA_CHAIN_ID, repayTokens)
-        );
+        emit IPaymasterVerifier.InvoiceCreated(expectedInvoiceId);
         paymaster.postOp(IPaymaster.PostOpMode.opSucceeded, context, 1222, 42);
     }
 
@@ -205,7 +207,8 @@ contract CABPaymasterTest is Test {
         });
 
         bytes32 expectedInvoiceId = 0xccabf5a2f5630bf7e426047c30d25fd0afe4bff9651bc648b4174153a38e38d8;
-        bytes32 computedInvoiceId = invoiceManager.getInvoiceId(account, paymaster, nonce, sponsorChainId, repayTokens);
+        bytes32 computedInvoiceId =
+            invoiceManager.getInvoiceId(account, paymaster, nonce, sponsorChainId, abi.encode(repayTokens));
         assertEq(computedInvoiceId, expectedInvoiceId, "Invoice ID computation mismatch");
     }
 }

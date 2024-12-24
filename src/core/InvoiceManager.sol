@@ -122,9 +122,9 @@ contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardU
         address paymaster,
         uint256 nonce,
         uint256 sponsorChainId,
-        RepayTokenInfo[] calldata repayTokenInfos
+        bytes calldata repayTokenInfos
     ) public view returns (bytes32) {
-        return keccak256(abi.encodePacked(account, paymaster, nonce, sponsorChainId, abi.encode(repayTokenInfos)));
+        return keccak256(abi.encodePacked(account, paymaster, nonce, sponsorChainId, repayTokenInfos));
     }
 
     function _getRepayToken(InvoiceWithRepayTokens memory invoice)
