@@ -29,14 +29,14 @@ export type OpenfortContracts = {
 
 export const openfortContracts: Record<supportedChain, OpenfortContracts> = {
   base: {
-    paymaster: "0x19b5CBF65ff1aAEB17e42f701E0AfeEFF0223244",
-    invoiceManager: "0xE94b6B5346BF1E46daDDe0002148ec9d3b2778B4",
-    vaultManager: "0x38c3c2d2BDdDBC2916d9c85638932f8Fd2F4a7fe",
+    paymaster: "0x3cB057Fd3BE519cB50788b8b282732edBF533DC6",
+    invoiceManager: "0x666eB01fBba3F3D5f7e5d8e72c6Ea57B6AF09798",
+    vaultManager: "0xEA7aa047c78c5583a2896e18E127A5C2E59C0887",
     vaults: {
       "0xfF3311cd15aB091B00421B23BcB60df02EFD8db7":
-        "0x2e49f4faf533060c33Da040B28cC7297C7EE2770",
+        "0x21c14066F5D62Cbec3c42e2c718Ce82E72fCBF87",
       "0xa9a0179e045cF39C5F4d914583dc3648DfBDeeF1":
-        "0xA22D8D45E83E405C801a18eF427f7c86BB10C241",
+        "0x742d0fc742B89267411c5AC24a5fdA3CA264eeC2",
     },
   },
   optimism: {
@@ -53,17 +53,17 @@ export const openfortContracts: Record<supportedChain, OpenfortContracts> = {
 };
 
 export const paymasters = {
-  base: "0x19b5CBF65ff1aAEB17e42f701E0AfeEFF0223244",
+  base: "0x3cB057Fd3BE519cB50788b8b282732edBF533DC6",
   optimism: "0x7926E12044F7f29150F5250B1A335a145298308d",
 };
 
 export const vaultManagers = {
-  base: "0x38c3c2d2BDdDBC2916d9c85638932f8Fd2F4a7fe",
+  base: "0xEA7aa047c78c5583a2896e18E127A5C2E59C0887",
   optimism: "0x9E6A6E55D9DbE20DF20A90C426724442C8D95481",
 };
 
 export const invoiceManagers = {
-  base: "0xE94b6B5346BF1E46daDDe0002148ec9d3b2778B4",
+  base: "0xec721B31c1F003E3D45671D3e6cB83F73AA8f0D6",
   optimism: "0xa3152B80759dfb0cB74009F4bB31b29d01e0e624",
 };
 
@@ -83,7 +83,7 @@ export const demoNFTs = {
 };
 
 export const vaultA = {
-  base: "0x2e49f4faf533060c33Da040B28cC7297C7EE2770",
+  base: "0x21c14066F5D62Cbec3c42e2c718Ce82E72fCBF87",
   optimism: "0x8e2048c85Eae2a4443408C284221B33e61906463",
 };
 

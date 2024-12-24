@@ -3,38 +3,16 @@ import { getAddress } from "viem";
 import { invoiceManager } from "../Invoice";
 
 describe("getInvoiceId", () => {
-  test("should match onchain invoice ID computation", async () => {
-    const invoice = {
-      account: getAddress("0x5E3Ae8798eAdE56c3B4fe8F085DAd16D4912Ba83"),
-      paymaster: getAddress("0xF6e64504ed56ec2725CDd0b3C1b23626D66008A2"),
-      nonce: 32005827482497451446878209048576n,
-      sponsorChainId: 84532n,
-      repayTokenInfos: [
-        {
-          vault: getAddress("0x8e2048c85Eae2a4443408C284221B33e61906463"),
-          amount: 500n,
-          chainId: 11155420n,
-        },
-      ],
-    };
-
-    const expectedInvoiceId =
-      "0xccabf5a2f5630bf7e426047c30d25fd0afe4bff9651bc648b4174153a38e38d8";
-    const computedInvoiceId = await invoiceManager.getInvoiceId(invoice);
-    expect(computedInvoiceId).toBe(expectedInvoiceId);
-  });
-
   /*
-    * $ cast call 0xE94b6B5346BF1E46daDDe0002148ec9d3b2778B4 "getInvoiceId(address,address,uint256,uint256,(address,uint256,uint256)[])"
-    "0x5E3Ae8798eAdE56c3B4fe8F085DAd16D4912Ba83" "0x19b5CBF65ff1aAEB17e42f701E0AfeEFF0223244" 32005912026784786589178245677056 84532 "[(0x8e2048c85Eae2a4443408C284221B33e61906463, 500, 11155420)]" --rpc-url https://sepolia.base.org
-    * ===> 0x155c98d25ec4425c2df7bf064bd434a7d63c86f3b87a948c8ebfbae3e553f21c
-    */
+   * cast call 0xec721B31c1F003E3D45671D3e6cB83F73AA8f0D6 "getInvoiceId(address,address,uint256,uint256,bytes)" "0x499E26E7A97cB8F89bE5668770Fb022fdDbCa40d" "0x76342B873f9583f9a1D2cF7b12F0b3E0536E1a71" 32006121834480964251358041473024 84532 "0x000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000010000000000000000000000008e2048c85eae2a4443408c284221b33e6190646300000000000000000000000000000000000000000000000000000000000001f40000000000000000000000000000000000000000000000000000000000aa37dc" --rpc-url https://sepolia.base.org
+   * ===> 0xc7fea7a3bdb81a75efca8bda6e2082245bc07b38bf7827aa8b8e0e7036987909
+   */
 
   test("should match onchain invoice ID computation", async () => {
     const invoice = {
-      account: getAddress("0x5E3Ae8798eAdE56c3B4fe8F085DAd16D4912Ba83"),
-      paymaster: getAddress("0x19b5CBF65ff1aAEB17e42f701E0AfeEFF0223244"),
-      nonce: 32005912026784786589178245677056n,
+      account: getAddress("0x499E26E7A97cB8F89bE5668770Fb022fdDbCa40d"),
+      paymaster: getAddress("0x3B03425198341CD6469Ba3e05e215a458CF021E6"),
+      nonce: 32006186547098020862214455427072n,
       sponsorChainId: 84532n,
       repayTokenInfos: [
         {
@@ -46,7 +24,7 @@ describe("getInvoiceId", () => {
     };
 
     const expectedInvoiceId =
-      "0x155c98d25ec4425c2df7bf064bd434a7d63c86f3b87a948c8ebfbae3e553f21c";
+      "0x454dc426cea4e57e4557e945492209e00a834df9bce1bfc17045a987eca98126";
     const computedInvoiceId = await invoiceManager.getInvoiceId(invoice);
     expect(computedInvoiceId).toBe(expectedInvoiceId);
   });

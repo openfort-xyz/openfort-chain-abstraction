@@ -37,8 +37,12 @@ contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint {
 
         vm.startBroadcast(deployerPrivKey);
 
+
+        InvoiceManager invoiceManagerImpl = new InvoiceManager();
+        console.log("InvoiceManagerImpl Address", address(invoiceManagerImpl));
+
         InvoiceManager invoiceManager =
-            InvoiceManager(payable(new UpgradeableOpenfortProxy{salt: versionSalt}(address(new InvoiceManager()), "")));
+            InvoiceManager(payable(new UpgradeableOpenfortProxy{salt: versionSalt}(address(invoiceManagerImpl), "")));
         console.log("InvoiceManager Address", address(invoiceManager));
         VaultManager vaultManager = VaultManager(
             payable(

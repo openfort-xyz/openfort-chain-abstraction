@@ -3,6 +3,7 @@ import { encodePacked, getAddress } from "viem";
 import { encodeAbiParameters, toHex, keccak256, concat } from "viem";
 import fs from "fs/promises";
 import path from "path";
+import { getRepayTokens } from "./utils";
 
 const RepayTokenInfoSchema = z.object({
   vault: z
@@ -82,21 +83,7 @@ class InvoiceManager implements InvoiceIO {
   }
 
   getInvoiceId(invoice: InvoiceWithRepayTokens): InvoiceId {
-    console.log(invoice);
-    const repayTokensEncoded = encodeAbiParameters(
-      [
-        {
-          type: "tuple[]",
-          components: [
-            { type: "address", name: "vault" },
-            { type: "uint256", name: "amount" },
-            { type: "uint256", name: "chainId" },
-          ],
-        },
-      ],
-      [invoice.repayTokenInfos],
-    );
-
+    const repayTokensEncoded = getRepayTokens(invoice.account);
     const packed = encodePacked(
       ["address", "address", "uint256", "uint256", "bytes"],
       [

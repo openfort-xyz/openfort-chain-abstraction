@@ -20,7 +20,7 @@ import {
 import {
   computeHash,
   getBlockTimestamp,
-  getRepayToken,
+  getRepayTokens,
   getSponsorTokens,
 } from "./utils";
 
@@ -74,7 +74,7 @@ export function getPaymasterActions(chain: supportedChain): PaymasterActions {
         paymasterData: concat([
           numberToHex(validUntil, { size: 6 }),
           numberToHex(validAfter, { size: 6 }),
-          getRepayToken(userOp.sender),
+          getRepayTokens(userOp.sender),
           getSponsorTokens(userOp.sender, chain),
           signature,
         ]) as Hex,

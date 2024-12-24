@@ -37,7 +37,7 @@ export function computeHash(
   paymasterVerificationGasLimit: bigint,
   paymasterPostOpGasLimit: bigint,
 ) {
-  const repayTokenData = getRepayToken(userOp.sender);
+  const repayTokenData = getRepayTokens(userOp.sender);
   const sponsorTokenData = getSponsorTokens(userOp.sender, chain);
   const encodedTokenData = encodeAbiParameters(
     [{ type: "bytes" }, { type: "bytes" }],
@@ -82,7 +82,7 @@ export function computeHash(
   return keccak256(encodedData);
 }
 
-export function getRepayToken(sender: Address) {
+export function getRepayTokens(sender: Address) {
   // TODO: check sender locked-funds
   return concat([
     "0x01", // length of the array (only one repay token)

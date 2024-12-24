@@ -101,6 +101,19 @@ contract CABPaymasterTest is Test {
         return abi.encodePacked(uint8(len), encodedSponsorToken);
     }
 
+
+    function encodeRepayToken(IInvoiceManager.RepayTokenInfo[] memory repayTokens) internal pure returns (bytes memory encodedRepayToken) {
+        for (uint8 i = 0; i < repayTokens.length; i++) {
+            encodedRepayToken = bytes.concat(
+                encodedRepayToken,
+                bytes20(address(repayTokens[i].vault)),
+                bytes32(repayTokens[i].amount),
+                bytes32(repayTokens[i].chainId)
+            );
+        }
+        return abi.encodePacked(uint8(repayTokens.length), encodedRepayToken);
+    }
+
     function getEncodedRepayTokens(uint8 len) internal returns (bytes memory encodedRepayToken) {
         IInvoiceManager.RepayTokenInfo[] memory repayTokens = new IInvoiceManager.RepayTokenInfo[](len);
         for (uint8 i = 0; i < len; i++) {
@@ -114,6 +127,13 @@ contract CABPaymasterTest is Test {
             );
         }
         return abi.encodePacked(uint8(len), encodedRepayToken);
+    }
+
+    function testEncodeRepayToken() public {
+        IInvoiceManager.RepayTokenInfo[] memory repayTokens = new IInvoiceManager.RepayTokenInfo[](1);
+        repayTokens[0] = IInvoiceManager.RepayTokenInfo({vault: IVault(address(0x8e2048c85Eae2a4443408C284221B33e61906463)), amount: 500, chainId: OPTIMISM_CHAIN_ID});
+        bytes memory encodedRepayToken = encodeRepayToken(repayTokens);
+        assertEq(encodedRepayToken, hex"018e2048c85Eae2a4443408C284221B33e6190646300000000000000000000000000000000000000000000000000000000000001f40000000000000000000000000000000000000000000000000000000000aa37dc");
     }
 
     function testValidateUserOp() public {
@@ -187,7 +207,6 @@ contract CABPaymasterTest is Test {
         // Calculate the expected invoiceId
         bytes32 expectedInvoiceId =
             invoiceManager.getInvoiceId(rekt, address(paymaster), userOp.nonce, BASE_SEPOLIA_CHAIN_ID, repayTokensBytes);
-        console.logBytes32(expectedInvoiceId);
         vm.expectEmit(true, true, true, true);
         emit IPaymasterVerifier.InvoiceCreated(expectedInvoiceId);
         paymaster.postOp(IPaymaster.PostOpMode.opSucceeded, context, 1222, 42);

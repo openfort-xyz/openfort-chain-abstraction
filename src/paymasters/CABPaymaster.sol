@@ -48,13 +48,12 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         IInvoiceManager.InvoiceWithRepayTokens calldata _invoice,
         bytes calldata _proof
     ) external virtual override returns (bool) {
-        // Check if the invoiceId corresponds to the invoice
         bytes32 invoiceId = invoiceManager.getInvoiceId(
             _invoice.account,
             _invoice.paymaster,
             _invoice.nonce,
             _invoice.sponsorChainId,
-            abi.encode(_invoice.repayTokenInfos)
+            _encodeRepayToken(_invoice.repayTokenInfos)
         );
 
         if (invoiceId != _invoiceId) return false;
@@ -74,18 +73,6 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
 
     function withdraw(address token, uint256 amount) external override onlyOwner {
         IERC20(token).safeTransfer(owner(), amount);
-    }
-
-    function getInvoiceHash(IInvoiceManager.InvoiceWithRepayTokens calldata invoice) public pure returns (bytes32) {
-        return keccak256(
-            abi.encode(
-                invoice.account,
-                invoice.nonce,
-                invoice.paymaster,
-                invoice.sponsorChainId,
-                keccak256(abi.encode(invoice.repayTokenInfos)) // vault, amount, chain
-            )
-        );
     }
 
     function getHash(PackedUserOperation calldata userOp, uint48 validUntil, uint48 validAfter)
@@ -113,6 +100,18 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
                 address(this),
                 validUntil,
                 validAfter
+            )
+        );
+    }
+
+    function getInvoiceHash(IInvoiceManager.InvoiceWithRepayTokens calldata invoice) public pure returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                invoice.account,
+                invoice.nonce,
+                invoice.paymaster,
+                invoice.sponsorChainId,
+                keccak256(abi.encode(invoice.repayTokenInfos)) // vault, amount, chain
             )
         );
     }
@@ -239,5 +238,21 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
                 i++;
             }
         }
+    }
+
+    function _encodeRepayToken(IInvoiceManager.RepayTokenInfo[] memory repayTokens)
+        internal
+        pure
+        returns (bytes memory encodedRepayToken)
+    {
+        for (uint8 i = 0; i < repayTokens.length; i++) {
+            encodedRepayToken = bytes.concat(
+                encodedRepayToken,
+                bytes20(address(repayTokens[i].vault)),
+                bytes32(repayTokens[i].amount),
+                bytes32(repayTokens[i].chainId)
+            );
+        }
+        return abi.encodePacked(uint8(repayTokens.length), encodedRepayToken);
     }
 }
