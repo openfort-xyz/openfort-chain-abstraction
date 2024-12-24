@@ -43,7 +43,9 @@ export const baseSepoliaBundlerClient = createBundlerClient({
 export const optimismBundlerClient = createBundlerClient({
   client: optimismPublicClient,
   paymaster: getPaymasterActions("optimism"),
-  transport: http(`http://localhost:8080/bundler/${optimismSepolia.id}`),
+  transport: http(
+    `https://api.pimlico.io/v2/optimism-sepolia/rpc?apikey=${process.env.PIMLICO_API_KEY}`,
+  ),
 });
 
 export const walletClients: Record<supportedChain, WalletClient> = {

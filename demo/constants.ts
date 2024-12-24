@@ -40,31 +40,31 @@ export const openfortContracts: Record<supportedChain, OpenfortContracts> = {
     },
   },
   optimism: {
-    paymaster: "0x892c3b4C86803EbfAfBECcE9220F3F49d801Fd8A",
-    invoiceManager: "0xa3152B80759dfb0cB74009F4bB31b29d01e0e624",
-    vaultManager: "0x9E6A6E55D9DbE20DF20A90C426724442C8D95481",
+    paymaster: "0x7A4d8f9321fEbC571CE3233668D87aC647D446D1",
+    invoiceManager: "0x28FCF5Ebe34e6e1bC236Ed185E6b1f2C481b7D5E",
+    vaultManager: "0x5C068c5a73B9A92072738DF70Cd100763d167D03",
     vaults: {
       "0x2522F4Fc9aF2E1954a3D13f7a5B2683A00a4543A":
-        "0x8e2048c85Eae2a4443408C284221B33e61906463",
+        "0x2e13e2daD7e324904580E39F931E2821a29fee15",
       "0xd926e338e047aF920F59390fF98A3114CCDcab4a":
-        "0xB35E1f4A65341e6D916902AB0238AC17c59b7430",
+        "0x12EEC47E20a4d3d9A46A9aDeDA08561B423f3C69",
     },
   },
 };
 
 export const paymasters = {
   base: "0x3cB057Fd3BE519cB50788b8b282732edBF533DC6",
-  optimism: "0x7926E12044F7f29150F5250B1A335a145298308d",
+  optimism: "0x7A4d8f9321fEbC571CE3233668D87aC647D446D1",
 };
 
 export const vaultManagers = {
   base: "0xEA7aa047c78c5583a2896e18E127A5C2E59C0887",
-  optimism: "0x9E6A6E55D9DbE20DF20A90C426724442C8D95481",
+  optimism: "0x5C068c5a73B9A92072738DF70Cd100763d167D03",
 };
 
 export const invoiceManagers = {
   base: "0xec721B31c1F003E3D45671D3e6cB83F73AA8f0D6",
-  optimism: "0xa3152B80759dfb0cB74009F4bB31b29d01e0e624",
+  optimism: "0x28FCF5Ebe34e6e1bC236Ed185E6b1f2C481b7D5E",
 };
 
 export const tokenA = {
@@ -84,7 +84,7 @@ export const demoNFTs = {
 
 export const vaultA = {
   base: "0x21c14066F5D62Cbec3c42e2c718Ce82E72fCBF87",
-  optimism: "0x8e2048c85Eae2a4443408C284221B33e61906463",
+  optimism: "0x2e13e2daD7e324904580E39F931E2821a29fee15",
 };
 
 export const chainIDs = {

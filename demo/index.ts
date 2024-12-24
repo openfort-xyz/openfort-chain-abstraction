@@ -11,6 +11,7 @@ import {
   V7SimpleAccountFactoryAddress,
   openfortContracts,
   vaultA,
+  paymasterVerifier,
 } from "./constants";
 import { Address, encodeAbiParameters, getAddress, Hex, parseAbi } from "viem";
 import { toSimpleSmartAccount } from "./SimpleSmartAccount";
@@ -21,7 +22,7 @@ import {
 
 import util from "util";
 import { invoiceManager } from "./Invoice";
-import { getBlockNumber } from "./utils";
+import { getBlockNumber, getBlockTimestamp } from "./utils";
 
 const figlet = require("figlet");
 const program = new Command();
@@ -73,8 +74,8 @@ program
   )
   .requiredOption("-t, --token <token>", "token address")
   .requiredOption("-a, --amount <amount>", "amount to lock")
-  .requiredOption("-s, --account-salt <salt>", "account salt")
-  .action(async ({ token, amount, chain, accountSalt }) => {
+  .requiredOption("-r, --recipient <recipient>", "recipient address")
+  .action(async ({ token, amount, chain, recipient }) => {
     if (!isValidChain(chain)) {
       throw new Error(`Unsupported chain: ${chain}`);
     }
@@ -85,53 +86,28 @@ program
 
     const vaultManager = openfortContracts[chain].vaultManager;
     const vault = openfortContracts[chain].vaults[token];
-    const publicClient = publicClients[chain];
-    const account = await toSimpleSmartAccount({
-      client: publicClient,
-      owner: ownerAccount,
-      salt: accountSalt,
-      entryPoint: {
-        address: entryPoint07Address,
-        version: "0.7",
-      },
-    });
+    const walletClient = walletClients[chain];
 
-    const accountAddress = await account.getAddress();
-    console.log(`Account Address: ${accountAddress}`);
-
-    const bundlerClient = bundlerClients[chain];
-    const unsignedUserOp = await bundlerClient.prepareUserOperation({
-      account: account,
-      calls: [
-        {
-          to: vaultManager,
-          abi: parseAbi(["function deposit(address, address, uint256, bool)"]),
-          functionName: "deposit",
-          args: [getAddress(token), getAddress(vault), amount, false],
-        },
-      ],
+    // const approveHash = await walletClient.writeContract({
+    //   address: token,
+    //   abi: parseAbi(["function approve(address, uint256)"]),
+    //   functionName: "approve",
+    //   args: [vaultManager, amount],
+    //   chain: walletClient.chain,
+    //   account: walletClient.account || null,
+    // });
+    // console.log(`Approve transaction sent: ${approveHash}`);
+    const hash = await walletClient.writeContract({
+      address: vaultManager,
+      abi: parseAbi([
+        "function depositFor(address, address, address, uint256, bool)",
+      ]),
+      functionName: "depositFor",
+      args: [recipient, token, vault, amount, false],
+      chain: walletClient.chain,
+      account: walletClient.account || null,
     });
-
-    const userOpHash = await getUserOperationHash({
-      chainId: chainIDs[chain],
-      entryPointAddress: entryPoint07Address,
-      entryPointVersion: "0.7",
-      userOperation: {
-        ...(unsignedUserOp as any),
-        sender: await account.getAddress(),
-      },
-    });
-
-    const signature = await ownerAccount.signMessage({
-      message: { raw: userOpHash },
-    });
-
-    const hash = await bundlerClient.sendUserOperation({
-      ...unsignedUserOp,
-      signature,
-      account: account,
-    });
-    console.log(`UserOp sent: ${hash}`);
+    console.log(`Transaction sent: ${hash}`);
   });
 
 program
@@ -276,6 +252,7 @@ program
         showHidden: true,
         depth: null,
         colors: true,
+        maxStringLength: null,
       }),
     );
   });
@@ -324,7 +301,6 @@ program
       throw new Error(`Unsupported chain: ${chain}`);
     }
     const invoiceWithRepayTokens = await invoiceManager.readInvoice(invoiceId);
-
     const walletClient = walletClients[chain];
 
     // we can hard  code logIndex since it is the index of the log within the tx
@@ -382,4 +358,73 @@ program
     );
   });
 
+program
+  .command("register-paymaster")
+  .description("register paymaster")
+  .addOption(
+    new Command()
+      .createOption("-c, --chain <chain>", "choose chain")
+      .choices(["base", "optimism"]),
+  )
+  .requiredOption("-s, --account-salt <salt>", "account salt")
+  .action(async ({ chain, accountSalt }) => {
+    if (!isValidChain(chain)) {
+      throw new Error(`Unsupported chain: ${chain}`);
+    }
+    const publicClient = publicClients[chain];
+    const bundlerClient = bundlerClients[chain];
+
+    const paymaster = openfortContracts[chain].paymaster;
+    const account = await toSimpleSmartAccount({
+      owner: ownerAccount,
+      client: publicClient,
+      salt: accountSalt,
+      factoryAddress: V7SimpleAccountFactoryAddress,
+      entryPoint: {
+        address: entryPoint07Address,
+        version: "0.7",
+      },
+    });
+    const accountAddress = await account.getAddress();
+    console.log(`Account Address: ${accountAddress}`);
+
+    const unsignedUserOp = await bundlerClient.prepareUserOperation({
+      account: account,
+      calls: [
+        {
+          to: openfortContracts[chain].invoiceManager,
+          abi: parseAbi([
+            "function registerPaymaster(address, address, uint256)",
+          ]),
+          functionName: "registerPaymaster",
+          args: [
+            paymaster,
+            paymaster,
+            (await getBlockTimestamp(chain)) + 1000000n,
+          ],
+        },
+      ],
+    });
+
+    const userOpHash = await getUserOperationHash({
+      chainId: chainIDs[chain],
+      entryPointAddress: entryPoint07Address,
+      entryPointVersion: "0.7",
+      userOperation: {
+        ...(unsignedUserOp as any),
+        sender: await account.getAddress(),
+      },
+    });
+
+    const signature = await ownerAccount.signMessage({
+      message: { raw: userOpHash },
+    });
+
+    const hash = await bundlerClient.sendUserOperation({
+      ...unsignedUserOp,
+      signature,
+      account: account,
+    });
+    console.log(`UserOp sent: ${hash}`);
+  });
 program.parse();
