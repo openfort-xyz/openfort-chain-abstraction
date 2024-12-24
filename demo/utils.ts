@@ -7,7 +7,6 @@ import {
   keccak256,
   numberToHex,
   pad,
-  parseAbi,
   toHex,
 } from "viem";
 import { publicClients } from "./viemClients";
@@ -23,6 +22,11 @@ import { PackedUserOperation } from "viem/account-abstraction";
 export async function getBlockTimestamp(chain: supportedChain) {
   const block = await publicClients[chain].getBlock();
   return block.timestamp;
+}
+
+export async function getBlockNumber(chain: supportedChain) {
+  const block = await publicClients[chain].getBlockNumber();
+  return block;
 }
 
 export function computeHash(

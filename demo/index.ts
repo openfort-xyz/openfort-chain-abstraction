@@ -21,6 +21,7 @@ import {
 
 import util from "util";
 import { invoiceManager } from "./Invoice";
+import { getBlockNumber } from "./utils";
 
 const figlet = require("figlet");
 const program = new Command();
@@ -365,10 +366,15 @@ program
       throw new Error(`Unsupported chain: ${chain}`);
     }
     const paymaster = openfortContracts[chain].paymaster;
-    console.log(parseAbi(["event InvoiceCreated(bytes32 indexed invoiceId)"]));
     const publicClient = publicClients[chain];
+
+    const currentBlock = await getBlockNumber(chain);
+
     const logs = await publicClient.getLogs({
       address: paymaster,
+      event: parseAbi(["event InvoiceCreated(bytes32 indexed invoiceId)"])[0],
+      fromBlock: currentBlock - 10000n,
+      toBlock: currentBlock,
     });
 
     console.log(
