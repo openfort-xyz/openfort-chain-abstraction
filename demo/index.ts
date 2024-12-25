@@ -11,7 +11,13 @@ import {
   openfortContracts,
   vaultA,
 } from "./constants";
-import { Address, encodeAbiParameters, Hex, parseAbi } from "viem";
+import {
+  Address,
+  encodeAbiParameters,
+  encodeFunctionData,
+  Hex,
+  parseAbi,
+} from "viem";
 import { toSimpleSmartAccount } from "./SimpleSmartAccount";
 import {
   entryPoint07Address,

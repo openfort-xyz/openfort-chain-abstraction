@@ -24,7 +24,7 @@ describe("getInvoiceId", () => {
     };
 
     const expectedInvoiceId =
-      "0x454dc426cea4e57e4557e945492209e00a834df9bce1bfc17045a987eca98126";
+      "0x8d1d56f301140f5e317ae961e5eb8065d04f7ef60725e4305b88f757245d2212";
     const computedInvoiceId = await invoiceManager.getInvoiceId(invoice);
     expect(computedInvoiceId).toBe(expectedInvoiceId);
   });

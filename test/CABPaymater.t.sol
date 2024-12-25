@@ -204,10 +204,6 @@ contract CABPaymasterTest is Test {
 
         userOp.paymasterAndData = bytes.concat(userOp.paymasterAndData, signature);
 
-        // DEMO paymasterAndData with sponsorToken address replaced by MockToken address to pass the approve in the paymaster
-        // userOp.paymasterAndData =
-        //    hex"F6e64504ed56ec2725CDd0b3C1b23626D66008A2000000000000000000000000000f4240000000000000000000000000000186a000000136ea9100000127a851018e2048c85Eae2a4443408C284221B33e6190646300000000000000000000000000000000000000000000000000000000000001f40000000000000000000000000000000000000000000000000000000000aa37dc01a0Cb889707d426A7A386870A03bc70d1b0697598Fb619E988fD324734be51b0475A67b6921D0301f00000000000000000000000000000000000000000000000000000000000001f4b6e46e8f25f10e368181d6957e4c4021d7d563dfde06cf9e12d8f1c31a88986c3755ef5dcfed29cda855f525c473d1310890389bd5232da23946ed27594796111c";
-
         vm.startPrank(address(entryPoint));
         (bytes memory context, uint256 validationData) =
             paymaster.validatePaymasterUserOp(userOp, userOpHash, type(uint256).max);
@@ -254,11 +250,13 @@ contract CABPaymasterTest is Test {
         });
         IInvoiceManager.InvoiceWithRepayTokens memory invoice = IInvoiceManager.InvoiceWithRepayTokens({
             account: 0xd6fe65f290d4BA8446b9EfD3BadAD5A4Bdfa98De,
-            paymaster: 0x3cB057Fd3BE519cB50788b8b282732edBF533DC6,
             nonce: 32007397118551674307018261266432,
+            paymaster: 0x3cB057Fd3BE519cB50788b8b282732edBF533DC6,
             sponsorChainId: 84532,
             repayTokenInfos: repayTokens
         });
+
+        console.logBytes(abi.encode(invoice));
 
         vm.expectEmit(true, true, true, true);
         emit IPaymasterVerifier.InvoiceVerified(invoiceId);

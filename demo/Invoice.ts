@@ -1,6 +1,11 @@
 import { z } from "zod";
-import { encodePacked, getAddress } from "viem";
-import { encodeAbiParameters, toHex, keccak256, concat } from "viem";
+import {
+  encodeAbiParameters,
+  encodePacked,
+  getAddress,
+  Hex,
+  keccak256,
+} from "viem";
 import fs from "fs/promises";
 import path from "path";
 import { getRepayTokens } from "./utils";
@@ -34,11 +39,13 @@ const InvoiceIdSchema = z
 
 const InvoicesSchema = z.record(InvoiceIdSchema, InvoiceWithRepayTokensSchema);
 
-type InvoiceId = z.infer<typeof InvoiceIdSchema>;
-type InvoiceWithRepayTokens = z.infer<typeof InvoiceWithRepayTokensSchema>;
-type Invoices = z.infer<typeof InvoicesSchema>;
+export type InvoiceId = z.infer<typeof InvoiceIdSchema>;
+export type InvoiceWithRepayTokens = z.infer<
+  typeof InvoiceWithRepayTokensSchema
+>;
+export type Invoices = z.infer<typeof InvoicesSchema>;
 
-interface InvoiceIO {
+export interface InvoiceIO {
   readInvoice(invoiceId: InvoiceId): Promise<InvoiceWithRepayTokens>;
   writeInvoice(invoice: InvoiceWithRepayTokens): Promise<InvoiceId>;
 }
