@@ -5,15 +5,13 @@ import {
   isValidChain,
   demoNFTs,
   tokenA,
-  paymasters,
   ownerAccount,
   chainIDs,
   V7SimpleAccountFactoryAddress,
   openfortContracts,
   vaultA,
-  paymasterVerifier,
 } from "./constants";
-import { Address, encodeAbiParameters, getAddress, Hex, parseAbi } from "viem";
+import { Address, encodeAbiParameters, Hex, parseAbi } from "viem";
 import { toSimpleSmartAccount } from "./SimpleSmartAccount";
 import {
   entryPoint07Address,
@@ -87,16 +85,23 @@ program
     const vaultManager = openfortContracts[chain].vaultManager;
     const vault = openfortContracts[chain].vaults[token];
     const walletClient = walletClients[chain];
+    const publicClient = publicClients[chain];
 
-    // const approveHash = await walletClient.writeContract({
-    //   address: token,
-    //   abi: parseAbi(["function approve(address, uint256)"]),
-    //   functionName: "approve",
-    //   args: [vaultManager, amount],
-    //   chain: walletClient.chain,
-    //   account: walletClient.account || null,
-    // });
-    // console.log(`Approve transaction sent: ${approveHash}`);
+    // Get the current nonce for the account
+    const nonce = await publicClient.getTransactionCount({
+      address: walletClient.account?.address as Address,
+    });
+    const approveHash = await walletClient.writeContract({
+      address: token,
+      abi: parseAbi(["function approve(address, uint256)"]),
+      functionName: "approve",
+      args: [vaultManager, amount],
+      chain: walletClient.chain,
+      account: walletClient.account || null,
+      nonce,
+    });
+
+    console.log(`Approve transaction sent: ${approveHash}`);
     const hash = await walletClient.writeContract({
       address: vaultManager,
       abi: parseAbi([
@@ -106,8 +111,9 @@ program
       args: [recipient, token, vault, amount, false],
       chain: walletClient.chain,
       account: walletClient.account || null,
+      nonce: nonce + 1,
     });
-    console.log(`Transaction sent: ${hash}`);
+    console.log(`Deposit transaction sent: ${hash}`);
   });
 
 program
@@ -155,6 +161,7 @@ program
     });
     const accountAddress = await account.getAddress();
     console.log(`Account Address: ${accountAddress}`);
+    const paymaster = openfortContracts[chain].paymaster;
     const unsignedUserOp = await bundlerClient.prepareUserOperation({
       account: account,
       calls: [
@@ -162,7 +169,7 @@ program
           to: tokenA[chain] as Address,
           abi: parseAbi(["function transferFrom(address, address, uint256)"]),
           functionName: "transferFrom",
-          args: [paymasters[chain] as Address, accountAddress, nftPrice],
+          args: [paymaster, accountAddress, nftPrice],
         },
         {
           to: tokenA[chain] as Address,
@@ -210,7 +217,7 @@ program
     const invoiceId = await invoiceManager.writeInvoice({
       account: accountAddress,
       nonce: BigInt(unsignedUserOp.nonce),
-      paymaster: paymasters[chain] as Address,
+      paymaster: openfortContracts[chain].paymaster,
       sponsorChainId: BigInt(chainIDs[chain]),
 
       repayTokenInfos: [
@@ -412,7 +419,7 @@ program
       entryPointVersion: "0.7",
       userOperation: {
         ...(unsignedUserOp as any),
-        sender: await account.getAddress(),
+        sender: accountAddress,
       },
     });
 
@@ -427,4 +434,67 @@ program
     });
     console.log(`UserOp sent: ${hash}`);
   });
+
+program
+  .command("revoke-paymaster")
+  .description("revoke paymaster")
+  .addOption(
+    new Command()
+      .createOption("-c, --chain <chain>", "choose chain")
+      .choices(["base", "optimism"]),
+  )
+  .requiredOption("-s, --account-salt <salt>", "account salt")
+  .action(async ({ chain, accountSalt }) => {
+    if (!isValidChain(chain)) {
+      throw new Error(`Unsupported chain: ${chain}`);
+    }
+    const publicClient = publicClients[chain];
+    const bundlerClient = bundlerClients[chain];
+
+    const account = await toSimpleSmartAccount({
+      owner: ownerAccount,
+      client: publicClient,
+      salt: accountSalt,
+      factoryAddress: V7SimpleAccountFactoryAddress,
+      entryPoint: {
+        address: entryPoint07Address,
+        version: "0.7",
+      },
+    });
+
+    const accountAddress = await account.getAddress();
+    console.log(`Account Address: ${accountAddress}`);
+    const unsignedUserOp = await bundlerClient.prepareUserOperation({
+      account: account,
+      calls: [
+        {
+          to: openfortContracts[chain].invoiceManager,
+          abi: parseAbi(["function revokePaymaster()"]),
+          functionName: "revokePaymaster",
+          args: [],
+        },
+      ],
+    });
+
+    const userOpHash = await getUserOperationHash({
+      chainId: chainIDs[chain],
+      entryPointAddress: entryPoint07Address,
+      entryPointVersion: "0.7",
+      userOperation: {
+        ...unsignedUserOp,
+        sender: accountAddress,
+      },
+    });
+    const signature = await ownerAccount.signMessage({
+      message: { raw: userOpHash },
+    });
+
+    const hash = await bundlerClient.sendUserOperation({
+      ...unsignedUserOp,
+      signature,
+      account: account as any,
+    });
+    console.log(`UserOp sent: ${hash}`);
+  });
+
 program.parse();

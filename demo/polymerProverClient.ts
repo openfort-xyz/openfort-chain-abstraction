@@ -21,7 +21,11 @@ const ReceiptQueryProofSchema = z.object({
     dstChainId: z.number(),
     createdAt: z.number(),
     updatedAt: z.number(),
-    proof: z.string().optional(),
+    proof: z.string().transform((val) => {
+      if (!val) return undefined;
+      const buffer = Buffer.from(val, "base64");
+      return `0x${buffer.toString("hex")}`;
+    }).optional(),
   }),
 });
 

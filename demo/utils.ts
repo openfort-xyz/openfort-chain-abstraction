@@ -12,7 +12,7 @@ import {
 import { publicClients } from "./viemClients";
 import {
   chainIDs,
-  paymasters,
+  openfortContracts,
   supportedChain,
   tokenA,
   vaultA,
@@ -74,7 +74,7 @@ export function computeHash(
       userOp.preVerificationGas,
       pad(userOp.gasFees, { size: 32 }),
       BigInt(chainIDs[chain]),
-      getAddress(paymasters[chain]),
+      getAddress(openfortContracts[chain].paymaster),
       Number(validUntil),
       Number(validAfter),
     ],

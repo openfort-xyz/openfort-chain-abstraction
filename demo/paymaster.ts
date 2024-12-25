@@ -7,7 +7,7 @@ import {
   UserOperation,
   PackedUserOperation,
 } from "viem/account-abstraction";
-import { paymasters, paymasterVerifier, supportedChain } from "./constants";
+import { openfortContracts, paymasterVerifier, supportedChain } from "./constants";
 import {
   Hex,
   Address,
@@ -25,7 +25,7 @@ import {
 } from "./utils";
 
 export function getPaymasterActions(chain: supportedChain): PaymasterActions {
-  const pmAddress = paymasters[chain] as Address;
+  const pmAddress = openfortContracts[chain].paymaster;
   return {
     getPaymasterData: async (
       parameters: GetPaymasterDataParameters,
