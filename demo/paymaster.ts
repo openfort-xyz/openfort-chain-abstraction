@@ -7,7 +7,11 @@ import {
   UserOperation,
   PackedUserOperation,
 } from "viem/account-abstraction";
-import { openfortContracts, paymasterVerifier, supportedChain } from "./constants";
+import {
+  openfortContracts,
+  paymasterVerifier,
+  supportedChain,
+} from "./constants";
 import {
   Hex,
   Address,

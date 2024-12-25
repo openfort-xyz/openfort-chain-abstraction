@@ -52,7 +52,6 @@ export const openfortContracts: Record<supportedChain, OpenfortContracts> = {
   },
 };
 
-
 // TODO: refactor this to only  refer to openfortContracts
 export const vaultA = {
   base: "0x21c14066F5D62Cbec3c42e2c718Ce82E72fCBF87",
@@ -73,7 +72,6 @@ export const demoNFTs = {
   base: "0xD129bda7CE0888d7Fd66ff46e7577c96984d678f",
   optimism: "0x9999999999999999999999999999999999999999",
 };
-
 
 export const chainIDs = {
   base: baseSepolia.id,

@@ -88,20 +88,20 @@ program
     const publicClient = publicClients[chain];
 
     // Get the current nonce for the account
-    const nonce = await publicClient.getTransactionCount({
-      address: walletClient.account?.address as Address,
-    });
-    const approveHash = await walletClient.writeContract({
-      address: token,
-      abi: parseAbi(["function approve(address, uint256)"]),
-      functionName: "approve",
-      args: [vaultManager, amount],
-      chain: walletClient.chain,
-      account: walletClient.account || null,
-      nonce,
-    });
+    // const nonce = await publicClient.getTransactionCount({
+    //   address: walletClient.account?.address as Address,
+    // });
+    // const approveHash = await walletClient.writeContract({
+    //   address: token,
+    //   abi: parseAbi(["function approve(address, uint256)"]),
+    //   functionName: "approve",
+    //   args: [vaultManager, amount],
+    //   chain: walletClient.chain,
+    //   account: walletClient.account || null,
+    //   nonce,
+    // });
+    //console.log(`Approve transaction sent: ${approveHash}`);
 
-    console.log(`Approve transaction sent: ${approveHash}`);
     const hash = await walletClient.writeContract({
       address: vaultManager,
       abi: parseAbi([
@@ -111,7 +111,6 @@ program
       args: [recipient, token, vault, amount, false],
       chain: walletClient.chain,
       account: walletClient.account || null,
-      nonce: nonce + 1,
     });
     console.log(`Deposit transaction sent: ${hash}`);
   });

@@ -15,24 +15,27 @@ const ReceiptQueryProofSchema = z.object({
   result: z.object({
     jobID: jobIdSchema,
     status: z.enum(["complete", "error", "pending"]),
-    blockNumber: z.number(),
+    blockNumber: z.number().optional(),
     receiptIndex: z.number(),
     srcChainId: z.number(),
     dstChainId: z.number(),
     createdAt: z.number(),
     updatedAt: z.number(),
-    proof: z.string().transform((val) => {
-      if (!val) return undefined;
-      const buffer = Buffer.from(val, "base64");
-      return `0x${buffer.toString("hex")}`;
-    }).optional(),
+    proof: z
+      .string()
+      .transform((val) => {
+        if (!val) return undefined;
+        const buffer = Buffer.from(val, "base64");
+        return `0x${buffer.toString("hex")}`;
+      })
+      .optional(),
   }),
 });
 
 type ReceiptProofResponse = {
   jobID: number;
   status: "complete" | "error" | "pending";
-  blockNumber: number;
+  blockNumber?: number;
   receiptIndex: number;
   srcChainId: number;
   dstChainId: number;
@@ -63,6 +66,7 @@ class PolymerProverClient {
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
+
     const rawData = (await response.json()) as {
       jsonrpc: string;
       id: number;
