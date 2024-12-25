@@ -37,7 +37,6 @@ contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint {
 
         vm.startBroadcast(deployerPrivKey);
 
-
         InvoiceManager invoiceManagerImpl = new InvoiceManager();
         console.log("InvoiceManagerImpl Address", address(invoiceManagerImpl));
 

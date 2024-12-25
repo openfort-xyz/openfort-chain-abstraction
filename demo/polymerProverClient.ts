@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { Hex } from "viem";
 
 const jobIdSchema = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
 
