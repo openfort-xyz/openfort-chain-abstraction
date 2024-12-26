@@ -12,8 +12,7 @@ import {IInvoiceManager} from "../interfaces/IInvoiceManager.sol";
 import {IVault} from "../interfaces/IVault.sol";
 import {IPaymasterVerifier} from "../interfaces/IPaymasterVerifier.sol";
 import {ICrossL2Prover} from "@vibc-core-smart-contracts/contracts/interfaces/ICrossL2Prover.sol";
-
-import {console} from "forge-std/console.sol";
+import {LibBytes} from "@solady/utils/LibBytes.sol";
 
 /**
  * @title CABPaymaster
@@ -49,45 +48,31 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         IInvoiceManager.InvoiceWithRepayTokens calldata _invoice,
         bytes calldata _proof
     ) external virtual override returns (bool) {
-        // Check if the invoiceId corresponds to the invoice
         bytes32 invoiceId = invoiceManager.getInvoiceId(
-            _invoice.account, _invoice.paymaster, _invoice.nonce, _invoice.sponsorChainId, _invoice.repayTokenInfos
+            _invoice.account,
+            _invoice.paymaster,
+            _invoice.nonce,
+            _invoice.sponsorChainId,
+            _encodeRepayToken(_invoice.repayTokenInfos)
         );
 
         if (invoiceId != _invoiceId) return false;
 
-        // _proof is an opaque bytes object to potentialy support different proof systems
-        // This paymasterVerifier supports Polymer proof system
-        (
-            bytes memory receiptIndex,
-            bytes memory receiptRLPEncodedBytes,
-            uint256 logIndex,
-            bytes memory logBytes,
-            bytes memory proof
-        ) = abi.decode(_proof, (bytes, bytes, uint256, bytes, bytes));
+        (uint256 logIndex, bytes memory proof) = abi.decode(_proof, (uint256, bytes));
+        (,, bytes[] memory topics,) = crossL2Prover.validateEvent(logIndex, proof);
+        bytes[] memory expectedTopics = new bytes[](2);
+        expectedTopics[0] = abi.encode(InvoiceCreated.selector);
+        expectedTopics[1] = abi.encode(invoiceId);
 
-        if (!crossL2Prover.validateEvent(receiptIndex, receiptRLPEncodedBytes, logIndex, logBytes, proof)) {
+        if (!LibBytes.eq(abi.encode(topics), abi.encode(expectedTopics))) {
             return false;
         }
-
-        // TODO: check if event matches InvoiceCreated(invoiceId)
+        emit InvoiceVerified(invoiceId);
         return true;
     }
 
     function withdraw(address token, uint256 amount) external override onlyOwner {
         IERC20(token).safeTransfer(owner(), amount);
-    }
-
-    function getInvoiceHash(IInvoiceManager.InvoiceWithRepayTokens calldata invoice) public pure returns (bytes32) {
-        return keccak256(
-            abi.encode(
-                invoice.account,
-                invoice.nonce,
-                invoice.paymaster,
-                invoice.sponsorChainId,
-                keccak256(abi.encode(invoice.repayTokenInfos)) // vault, amount, chain
-            )
-        );
     }
 
     function getHash(PackedUserOperation calldata userOp, uint48 validUntil, uint48 validAfter)
@@ -119,6 +104,18 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         );
     }
 
+    function getInvoiceHash(IInvoiceManager.InvoiceWithRepayTokens calldata invoice) public pure returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                invoice.account,
+                invoice.nonce,
+                invoice.paymaster,
+                invoice.sponsorChainId,
+                keccak256(abi.encode(invoice.repayTokenInfos)) // vault, amount, chain
+            )
+        );
+    }
+
     function _validatePaymasterUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash, uint256 requiredPreFund)
         internal
         override
@@ -132,7 +129,6 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
             parsePaymasterSignature(signature);
 
         (uint256 sponsorTokenLength, SponsorToken[] memory sponsorTokens) = parseSponsorTokenData(sponsorTokenData);
-        (, IInvoiceManager.RepayTokenInfo[] memory repayTokens) = parseRepayTokenData(repayTokenData);
 
         // revoke the approval at the end of userOp
         for (uint256 i = 0; i < sponsorTokenLength; i++) {
@@ -141,7 +137,7 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         }
 
         bytes32 invoiceId =
-            invoiceManager.getInvoiceId(userOp.getSender(), address(this), userOp.nonce, block.chainid, repayTokens);
+            invoiceManager.getInvoiceId(userOp.getSender(), address(this), userOp.nonce, block.chainid, repayTokenData);
 
         bytes32 hash = MessageHashUtils.toEthSignedMessageHash(getHash(userOp, validUntil, validAfter));
 
@@ -244,29 +240,19 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         }
     }
 
-    function parseRepayTokenData(bytes calldata repayTokenData)
-        public
+    function _encodeRepayToken(IInvoiceManager.RepayTokenInfo[] memory repayTokens)
+        internal
         pure
-        returns (uint8 repayTokenLength, IInvoiceManager.RepayTokenInfo[] memory repayTokens)
+        returns (bytes memory encodedRepayToken)
     {
-        repayTokenLength = uint8(bytes1(repayTokenData[0]));
-
-        // 1 byte: length
-        // length * 84 bytes: (20 bytes: vault address + 32 bytes chainID + 32 bytes amount)
-        require(repayTokenData.length == 1 + repayTokenLength * 84, "CABPaymaster: invalid repayTokenData length");
-
-        repayTokens = new IInvoiceManager.RepayTokenInfo[](repayTokenLength);
-        for (uint256 i = 0; i < uint256(repayTokenLength);) {
-            uint256 offset = 1 + i * 84;
-            address vault = address(bytes20(repayTokenData[offset:offset + 20]));
-            uint256 chainId = uint256(bytes32(repayTokenData[offset + 20:offset + 52]));
-            uint256 amount = uint256(bytes32(repayTokenData[offset + 52:offset + 84]));
-
-            repayTokens[i] = IInvoiceManager.RepayTokenInfo(IVault(vault), amount, chainId);
-
-            unchecked {
-                i++;
-            }
+        for (uint8 i = 0; i < repayTokens.length; i++) {
+            encodedRepayToken = bytes.concat(
+                encodedRepayToken,
+                bytes20(address(repayTokens[i].vault)),
+                bytes32(repayTokens[i].amount),
+                bytes32(repayTokens[i].chainId)
+            );
         }
+        return abi.encodePacked(uint8(repayTokens.length), encodedRepayToken);
     }
 }
