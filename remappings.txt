@@ -2,3 +2,7 @@
 @openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/
 @vibc-core-smart-contracts/=lib/vibc-core-smart-contracts/
 @solady/=lib/solady/src/
+aave-v3-origin/=lib/aave-v3-origin/src/
+
+
+
