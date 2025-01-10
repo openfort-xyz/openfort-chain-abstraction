@@ -36,6 +36,11 @@ contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardU
 
     function _authorizeUpgrade(address) internal override onlyOwner {}
 
+    modifier onlyPaymaster(address account) {
+        require(cabPaymasters[account].paymaster == msg.sender, "InvoiceManager: caller is not the paymaster");
+        _;
+    }
+
     /// @inheritdoc IInvoiceManager
     function registerPaymaster(address paymaster, IPaymasterVerifier paymasterVerifier, uint256 expiry)
         external
@@ -61,14 +66,17 @@ contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardU
     }
 
     /// @inheritdoc IInvoiceManager
-    function createInvoice(uint256 nonce, address paymaster, bytes32 invoiceId) external override {
+    function createInvoice(uint256 nonce, address account, bytes32 invoiceId)
+        external
+        override
+        onlyPaymaster(account)
+    {
         // check if the invoice already exists
         require(invoices[invoiceId].account == address(0), "InvoiceManager: invoice already exists");
-
         // store the invoice
-        invoices[invoiceId] = Invoice(msg.sender, nonce, paymaster, block.chainid);
+        invoices[invoiceId] = Invoice(account, nonce, msg.sender, block.chainid);
 
-        emit InvoiceCreated(invoiceId, msg.sender, paymaster);
+        emit InvoiceCreated(invoiceId, account, msg.sender);
     }
 
     /// @inheritdoc IInvoiceManager

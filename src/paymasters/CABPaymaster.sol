@@ -60,15 +60,10 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
 
         (uint256 logIndex, bytes memory proof) = abi.decode(_proof, (uint256, bytes));
         (,, bytes[] memory topics,) = crossL2Prover.validateEvent(logIndex, proof);
-        bytes[] memory expectedTopics = new bytes[](2);
-        expectedTopics[0] = abi.encode(InvoiceCreated.selector);
-        expectedTopics[1] = abi.encode(invoiceId);
 
-        if (!LibBytes.eq(abi.encode(topics), abi.encode(expectedTopics))) {
-            return false;
-        }
-        emit InvoiceVerified(invoiceId);
-        return true;
+        return LibBytes.eq(
+            abi.encode(topics[0], topics[1]), abi.encode(IInvoiceManager.InvoiceCreated.selector, invoiceId)
+        );
     }
 
     function withdraw(address token, uint256 amount) external override onlyOwner {
@@ -122,6 +117,7 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         returns (bytes memory context, uint256 validationData)
     {
         (requiredPreFund);
+        address sender = userOp.getSender();
         (uint48 validUntil, uint48 validAfter, bytes calldata signature) =
             parsePaymasterAndData(userOp.paymasterAndData);
 
@@ -137,20 +133,20 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         }
 
         bytes32 invoiceId =
-            invoiceManager.getInvoiceId(userOp.getSender(), address(this), userOp.nonce, block.chainid, repayTokenData);
+            invoiceManager.getInvoiceId(sender, address(this), userOp.nonce, block.chainid, repayTokenData);
 
         bytes32 hash = MessageHashUtils.toEthSignedMessageHash(getHash(userOp, validUntil, validAfter));
 
         // don't revert on signature failure: return SIG_VALIDATION_FAILED
         if (verifyingSigner != ECDSA.recover(hash, paymasterSignature)) {
             return (
-                abi.encodePacked(invoiceId, sponsorTokenData[0:1 + sponsorTokenLength * 72]),
+                abi.encodePacked(invoiceId, sender, userOp.nonce, sponsorTokenData[0:1 + sponsorTokenLength * 72]),
                 _packValidationData(true, validUntil, validAfter)
             );
         }
 
         return (
-            abi.encodePacked(invoiceId, sponsorTokenData[0:1 + sponsorTokenLength * 72]),
+            abi.encodePacked(invoiceId, sender, userOp.nonce, sponsorTokenData[0:1 + sponsorTokenLength * 72]),
             _packValidationData(false, validUntil, validAfter)
         );
     }
@@ -160,8 +156,7 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         virtual
         override
     {
-        bytes32 invoiceId = bytes32(context[:32]);
-        bytes calldata sponsorTokenData = context[32:];
+        bytes calldata sponsorTokenData = context[84:];
 
         (uint8 sponsorTokenLength, SponsorToken[] memory sponsorTokens) = parseSponsorTokenData(sponsorTokenData);
         for (uint8 i = 0; i < sponsorTokenLength; i++) {
@@ -170,7 +165,10 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         }
         // TODO: Batch Proving Optimistation -> write in settlement contract on `opSucceeded`
         if (mode == PostOpMode.opSucceeded) {
-            emit InvoiceCreated(invoiceId);
+            bytes32 invoiceId = bytes32(context[:32]);
+            address account = address(bytes20(context[32:52]));
+            uint256 nonce = uint256(bytes32(context[52:84]));
+            invoiceManager.createInvoice(nonce, account, invoiceId);
         }
     }
 
