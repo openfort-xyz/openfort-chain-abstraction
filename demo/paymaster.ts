@@ -4,7 +4,6 @@ import {
   GetPaymasterDataReturnType,
   GetPaymasterStubDataParameters,
   GetPaymasterStubDataReturnType,
-  UserOperation,
   PackedUserOperation,
 } from "viem/account-abstraction";
 import {

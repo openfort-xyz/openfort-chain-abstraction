@@ -93,20 +93,20 @@ program
     const walletClient = walletClients[chain];
     const publicClient = publicClients[chain];
 
-    // Get the current nonce for the account
-    // const nonce = await publicClient.getTransactionCount({
-    //   address: walletClient.account?.address as Address,
-    // });
-    // const approveHash = await walletClient.writeContract({
-    //   address: token,
-    //   abi: parseAbi(["function approve(address, uint256)"]),
-    //   functionName: "approve",
-    //   args: [vaultManager, amount],
-    //   chain: walletClient.chain,
-    //   account: walletClient.account || null,
-    //   nonce,
-    // });
-    //console.log(`Approve transaction sent: ${approveHash}`);
+    const nonce = await publicClient.getTransactionCount({
+      address: walletClient.account?.address as Address,
+    });
+
+    const approveHash = await walletClient.writeContract({
+      address: token,
+      abi: parseAbi(["function approve(address, uint256)"]),
+      functionName: "approve",
+      args: [vaultManager, amount],
+      chain: walletClient.chain,
+      account: walletClient.account || null,
+      nonce,
+    });
+    console.log(`Approve transaction sent: ${approveHash}`);
 
     const hash = await walletClient.writeContract({
       address: vaultManager,
@@ -117,6 +117,7 @@ program
       args: [recipient, token, vault, amount, false],
       chain: walletClient.chain,
       account: walletClient.account || null,
+      nonce: nonce + 1,
     });
     console.log(`Deposit transaction sent: ${hash}`);
   });
@@ -167,6 +168,7 @@ program
     const accountAddress = await account.getAddress();
     console.log(`Account Address: ${accountAddress}`);
     const paymaster = openfortContracts[chain].paymaster;
+    console.log(`Paymaster: ${paymaster}`);
     const unsignedUserOp = await bundlerClient.prepareUserOperation({
       account: account,
       calls: [
@@ -193,6 +195,7 @@ program
       postVerificationGasLimit: 1000000n,
       preVerificationGas: 1000000n,
       callGasLimit: 1000000n,
+      paymasterPostOpGasLimit: 1000000n,
       /** Concatenation of {@link UserOperation`verificationGasLimit`} (16 bytes) and {@link UserOperation`callGasLimit`} (16 bytes) */
       accountGasLimits:
         `0x${1000000n.toString(16)}${1000000n.toString(16)}` as Hex,
@@ -313,6 +316,9 @@ program
       throw new Error(`Unsupported chain: ${chain}`);
     }
     const invoiceWithRepayTokens = await invoiceManager.readInvoice(invoiceId);
+
+    console.log("invoiceWithRepayTokens");
+    console.log(invoiceWithRepayTokens);
     const walletClient = walletClients[chain];
 
     // we can hard  code logIndex since it is the index of the log within the tx
@@ -353,14 +359,16 @@ program
     if (!isValidChain(chain)) {
       throw new Error(`Unsupported chain: ${chain}`);
     }
-    const paymaster = openfortContracts[chain].paymaster;
+    const invoiceManager = openfortContracts[chain].invoiceManager;
     const publicClient = publicClients[chain];
 
     const currentBlock = await getBlockNumber(chain);
 
     const logs = await publicClient.getLogs({
-      address: paymaster,
-      event: parseAbi(["event InvoiceCreated(bytes32 indexed invoiceId)"])[0],
+      address: invoiceManager,
+      event: parseAbi([
+        "event InvoiceCreated(bytes32 indexed invoiceId, address indexed account, address indexed paymaster)",
+      ])[0],
       fromBlock: currentBlock - 10000n,
       toBlock: currentBlock,
     });
