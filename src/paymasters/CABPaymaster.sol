@@ -14,6 +14,7 @@ import {IPaymasterVerifier} from "../interfaces/IPaymasterVerifier.sol";
 import {ICrossL2Prover} from "@vibc-core-smart-contracts/contracts/interfaces/ICrossL2Prover.sol";
 import {LibBytes} from "@solady/utils/LibBytes.sol";
 
+
 /**
  * @title CABPaymaster
  * @dev A paymaster used in chain abstracted balance to sponsor the gas fee and tokens cross-chain.
@@ -61,8 +62,9 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         (uint256 logIndex, bytes memory proof) = abi.decode(_proof, (uint256, bytes));
         (,, bytes[] memory topics,) = crossL2Prover.validateEvent(logIndex, proof);
 
-        return LibBytes.eq(
-            abi.encode(topics[0], topics[1]), abi.encode(IInvoiceManager.InvoiceCreated.selector, invoiceId)
+        return (
+            LibBytes.eqs(topics[0], IInvoiceManager.InvoiceCreated.selector) &&
+            LibBytes.eqs(topics[1], invoiceId)
         );
     }
 
@@ -106,7 +108,7 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
                 invoice.nonce,
                 invoice.paymaster,
                 invoice.sponsorChainId,
-                keccak256(abi.encode(invoice.repayTokenInfos)) // vault, amount, chain
+                keccak256(abi.encode(invoice.repayTokenInfos))
             )
         );
     }
