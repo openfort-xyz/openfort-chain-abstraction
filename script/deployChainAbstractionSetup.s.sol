@@ -15,6 +15,7 @@ import {VaultManager} from "../src/vaults/VaultManager.sol";
 import {CABPaymaster} from "../src/paymasters/CABPaymaster.sol";
 import {InvoiceManager} from "../src/core/InvoiceManager.sol";
 import {IPool} from "aave-v3-origin/core/contracts/interfaces/IPool.sol";
+import {L2Encoder} from "aave-v3-origin/core/contracts/misc/L2Encoder.sol";
 
 import {ICrossL2Prover} from "@vibc-core-smart-contracts/contracts/interfaces/ICrossL2Prover.sol";
 
@@ -29,8 +30,10 @@ contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint, CheckAa
     address internal verifyingSigner = vm.envAddress("VERIFYING_SIGNER");
     bytes32 internal versionSalt = vm.envBytes32("VERSION_SALT");
 
+    address internal l2Encoder;
     address internal aavePool = vm.envAddress("AAVE_POOL");
     address internal protocolDataProvider = vm.envAddress("AAVE_DATA_PROVIDER");
+    bool internal isL2 = vm.envBool("IS_L2");
 
     function run(address[] calldata tokens) public {
         if (tokens.length == 0) {
@@ -84,6 +87,11 @@ contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint, CheckAa
             vaultManager.addVault(baseVault);
 
             if (isAaveToken(protocolDataProvider, token)) {
+                if(isL2) {
+                    l2Encoder = address(new L2Encoder(IPool(aavePool)));
+                } else {
+                    l2Encoder = address(0);
+                }
                 address aTokenAddress = getATokenAddress(protocolDataProvider, address(token));
                 AaveVault aaveVault = AaveVault(
                     payable(
@@ -94,7 +102,9 @@ contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint, CheckAa
                                 IVaultManager(address(vaultManager)),
                                 IERC20(token),
                                 IERC20(aTokenAddress),
-                                IPool(aavePool)
+                                IPool(aavePool),
+                                isL2,
+                                l2Encoder
                             )
                         )
                     )

@@ -53,7 +53,7 @@ contract DeployAndTestAaveVaults is Test, Script, CheckAaveTokenStatus {
                             underlyingToken,
                             aToken,
                             IPool(aavePool),
-                            isL2,
+                            false,
                             address(0)
                         )
                     )
