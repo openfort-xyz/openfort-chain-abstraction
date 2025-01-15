@@ -88,7 +88,9 @@ contract DepositTest is Test {
         assertEq(mockUnderlyingToken.balanceOf(address(mockAavePool)), depositAmount, "Pool balance mismatch");
         assertEq(mockUnderlyingToken.balanceOf(address(aaveVaultL1)), 0, "Vault balance mismatch");
         assertEq(
-            vaultManager.vaultShares(alice, aaveVaultL1), aaveVaultL1.underlyingToShares(depositAmount), "Shares mismatch"
+            vaultManager.vaultShares(alice, aaveVaultL1),
+            aaveVaultL1.underlyingToShares(depositAmount),
+            "Shares mismatch"
         );
     }
 
@@ -104,7 +106,11 @@ contract DepositTest is Test {
         assertEq(mockUnderlyingToken.balanceOf(address(mockL2AavePool)), depositAmount, "Pool balance mismatch");
         assertEq(mockUnderlyingToken.balanceOf(address(aaveVaultL1)), 0, "Vault balance mismatch");
         // Verify shares
-        assertEq(vaultManager.vaultShares(alice, aaveVaultL2), aaveVaultL2.underlyingToShares(depositAmount), "Shares mismatch");
+        assertEq(
+            vaultManager.vaultShares(alice, aaveVaultL2),
+            aaveVaultL2.underlyingToShares(depositAmount),
+            "Shares mismatch"
+        );
     }
 
     function testDepositFailsWithoutApproval() public {
