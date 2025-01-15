@@ -11,6 +11,7 @@ import {IPool} from "aave-v3-origin/core/contracts/interfaces/IPool.sol";
 import {InvoiceManager} from "../../src/core/InvoiceManager.sol";
 import {IVault} from "../../src/interfaces/IVault.sol";
 import {CheckAaveTokenStatus} from "../../script/auxiliary/checkAaveTokenStatus.s.sol";
+import {L2Encoder} from "aave-v3-origin/core/contracts/misc/L2Encoder.sol";
 
 contract DeployAndTestAaveVaults is Test, Script, CheckAaveTokenStatus {
     VaultManager internal vaultManager;
@@ -19,6 +20,7 @@ contract DeployAndTestAaveVaults is Test, Script, CheckAaveTokenStatus {
     IERC20 internal underlyingToken;
     IERC20 internal aToken;
     address internal deployer;
+    address internal l2Encoder;
 
     bool internal isL2 = vm.envBool("IS_L2");
     address internal owner = vm.envAddress("OWNER");
@@ -41,6 +43,11 @@ contract DeployAndTestAaveVaults is Test, Script, CheckAaveTokenStatus {
         );
 
         if (isAaveToken(protocolDataProvider, address(underlyingToken))) {
+            if (isL2) {
+                l2Encoder = address(new L2Encoder(IPool(aavePool)));
+            } else {
+                l2Encoder = address(0);
+            }
             address aTokenAddress = getATokenAddress(protocolDataProvider, address(underlyingToken));
             aToken = IERC20(aTokenAddress);
             aaveVault = AaveVault(
@@ -53,8 +60,8 @@ contract DeployAndTestAaveVaults is Test, Script, CheckAaveTokenStatus {
                             underlyingToken,
                             aToken,
                             IPool(aavePool),
-                            false,
-                            address(0)
+                            isL2,
+                            l2Encoder
                         )
                     )
                 )
@@ -271,7 +278,6 @@ contract DeployAndTestAaveVaults is Test, Script, CheckAaveTokenStatus {
         address userB = address(0x2);
         uint256 depositA = 100 * 10 ** 18;
         uint256 depositB = 200 * 10 ** 18;
-
 
         // User A deposits
         vm.startPrank(owner);

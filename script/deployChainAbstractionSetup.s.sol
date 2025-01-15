@@ -87,7 +87,7 @@ contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint, CheckAa
             vaultManager.addVault(baseVault);
 
             if (isAaveToken(protocolDataProvider, token)) {
-                if(isL2) {
+                if (isL2) {
                     l2Encoder = address(new L2Encoder(IPool(aavePool)));
                 } else {
                     l2Encoder = address(0);

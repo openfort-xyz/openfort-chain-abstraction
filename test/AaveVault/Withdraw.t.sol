@@ -111,7 +111,11 @@ contract WithdrawTest is Test {
 
         // Verify balances
         assertEq(mockUnderlyingToken.balanceOf(alice), 900 ether, "Alice did not receive correct L1 withdrawal amount");
-        assertEq(vaultManager.vaultShares(alice, aaveVaultL1), aaveVaultL1.totalShares() - sharesWithdrawAmount, "Shares mismatch after L1 withdrawal");
+        assertEq(
+            vaultManager.vaultShares(alice, aaveVaultL1),
+            aaveVaultL1.totalShares() - sharesWithdrawAmount,
+            "Shares mismatch after L1 withdrawal"
+        );
     }
 
     function testQueueAndCompleteWithdrawL2() public {
@@ -144,6 +148,10 @@ contract WithdrawTest is Test {
 
         // Verify balances
         assertEq(mockUnderlyingToken.balanceOf(alice), 900 ether, "Alice did not receive correct L2 withdrawal amount");
-        assertEq(vaultManager.vaultShares(alice, aaveVaultL2), aaveVaultL2.totalShares() - sharesWithdrawAmount, "Shares mismatch after L2 withdrawal");
+        assertEq(
+            vaultManager.vaultShares(alice, aaveVaultL2),
+            aaveVaultL2.totalShares() - sharesWithdrawAmount,
+            "Shares mismatch after L2 withdrawal"
+        );
     }
 }
