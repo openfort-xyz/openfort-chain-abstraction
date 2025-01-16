@@ -14,7 +14,6 @@ import {
 import {
   Address,
   encodeAbiParameters,
-  encodeFunctionData,
   Hex,
   parseAbi,
 } from "viem";

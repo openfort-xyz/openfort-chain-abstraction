@@ -167,6 +167,10 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         }
         // TODO: Batch Proving Optimistation -> write in settlement contract on `opSucceeded`
         if (mode == PostOpMode.opSucceeded) {
+            //emit IInvoiceManager.InvoiceCreated(bytes32(context[:32]), address(bytes20(context[32:52])), address(this));
+
+            // This add ~= 100k gas compared to only emitting the InvoiceCreated event
+            // Questiom: is storing the invoices onchain is truly necessary?
             bytes32 invoiceId = bytes32(context[:32]);
             address account = address(bytes20(context[32:52]));
             uint256 nonce = uint256(bytes32(context[52:84]));
