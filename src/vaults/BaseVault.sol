@@ -8,10 +8,10 @@ import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.s
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+
 /**
  * @title Implementation of the IVault interface.
  */
-
 contract BaseVault is UUPSUpgradeable, OwnableUpgradeable, IVault {
     using SafeERC20 for IERC20;
 
@@ -145,6 +145,7 @@ contract BaseVault is UUPSUpgradeable, OwnableUpgradeable, IVault {
      */
     function _previewDeposit(uint256 priorTotalShares, IERC20 token, uint256 amount, bool isYield)
         internal
+        view
         virtual
         returns (uint256)
     {
