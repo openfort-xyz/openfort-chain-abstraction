@@ -21,10 +21,12 @@ contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint {
     uint256 internal deployerPrivKey = vm.envUint("PK_DEPLOYER");
     uint256 internal withdrawLockBlock = vm.envUint("WITHDRAW_LOCK_BLOCK");
     address internal deployer = vm.addr(deployerPrivKey);
-    address internal crossL2Prover = vm.envAddress("CROSS_L2_PROVER");
     address internal owner = vm.envAddress("OWNER");
     address internal verifyingSigner = vm.envAddress("VERIFYING_SIGNER");
     bytes32 internal versionSalt = vm.envBytes32("VERSION_SALT");
+
+    // Note: crossL2Prover is deployed by Polymer at the same address on all supported chains
+    address internal crossL2Prover = 0xb8AcB3FE3117A67b665Bc787c977623612f8a461;
 
     function run(address[] calldata tokens) public {
         if (tokens.length == 0) {
