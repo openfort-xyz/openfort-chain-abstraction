@@ -86,8 +86,8 @@ export function getRepayTokens(sender: Address) {
   // TODO: check sender locked-funds
   return concat([
     "0x01", // length of the array (only one repay token)
-    vaultA["optimism"] as Address,
-    pad(numberToHex(500), { size: 32 }),
+    vaultA["optimism"] as Address, // DEMO: only gets repaid on optimism
+    pad(numberToHex(500), { size: 32 }), // DEMO: fixed amount tokens are repaid
     pad(numberToHex(chainIDs["optimism"]), { size: 32 }),
   ]);
 }

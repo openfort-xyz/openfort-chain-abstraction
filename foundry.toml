@@ -2,6 +2,7 @@
 src = "src"
 out = "out"
 libs = ["lib"]
+evm_version = "paris"
 via_ir = true
 gas_reports = ["*"]
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

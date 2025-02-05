@@ -1,7 +1,7 @@
 import { Address, privateKeyToAccount } from "viem/accounts";
-import { baseSepolia, optimismSepolia } from "viem/chains";
+import { baseSepolia, optimismSepolia, mantleSepoliaTestnet } from "viem/chains";
 // Add proper type definition
-export type supportedChain = "optimism" | "base";
+export type supportedChain = "optimism" | "base" | "mantle";
 
 export const V7SimpleAccountFactoryAddress =
   "0x91E60e0613810449d098b0b5Ec8b51A0FE8c8985";
@@ -40,14 +40,25 @@ export const openfortContracts: Record<supportedChain, OpenfortContracts> = {
     },
   },
   optimism: {
-    paymaster: "0x511985306FDDE63cda68F5675EC296AAd826b5b8",
-    invoiceManager: "0x9dDB3Af574307DFEfE9d69D09A0BBcF55b9e2D34",
-    vaultManager: "0xd454fbc6Df5D9d91Fa02e60fD46CDD2208d0b33b",
+    paymaster: "0x4036469C65800b6A2278BB9603c3Aae8e22e046d",
+    invoiceManager: "0xf81173107aA5c72042d3F6676AD61aE08242d364",
+    vaultManager: "0x56818692A9d313Bf39Ac095E5670Ebd66B98F6EA",
     vaults: {
       "0x2522F4Fc9aF2E1954a3D13f7a5B2683A00a4543A":
-        "0xaF45f62eB99AD2091440336ca714B21F06525978",
+        "0xFE84D9E1B3A2AbAB1EB53A9D50E58B6D7FFe268C",
       "0xd926e338e047aF920F59390fF98A3114CCDcab4a":
-        "0x5b306B655B84Bc3201e6f9577d0CDcc7C2e9Ebfb",
+        "0x3f4c40dE7702FcDF93d4DF9bdbBe8c34F107a21a",
+    },
+  },
+  mantle: {
+    paymaster: "0xeDb665E8e20f95bA4d79a8C208aeFF21f05dC88B",
+    invoiceManager: "0x4501B873f3DA90a79B4F898E2627B88b63F37039",
+    vaultManager: "0x8BFf6f29A6435C35a29dCE67baEa050160A9e41e",
+    vaults: {
+      "0x4855090BbFf14397E1d48C9f4Cd7F111618F071a":
+        "0x30C788123bF7540828CEc9dA861Eca4009DECef8",
+      "0x76501186fB44d508b9aeC50899037F33C6FF4A36":
+        "0x537758a6b09D042B12b7C0Cb18CEc466E83640E1",
     },
   },
 };
@@ -56,28 +67,33 @@ export const openfortContracts: Record<supportedChain, OpenfortContracts> = {
 export const vaultA = {
   base: "0x5502B2Da288Be13F48eE46E3261690Ed4a1e71f9",
   optimism: "0xaF45f62eB99AD2091440336ca714B21F06525978",
+  mantle: "0x30C788123bF7540828CEc9dA861Eca4009DECef8",
 };
 
 export const tokenA = {
   base: "0xfF3311cd15aB091B00421B23BcB60df02EFD8db7",
   optimism: "0x2522F4Fc9aF2E1954a3D13f7a5B2683A00a4543A",
+  mantle: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE", // Sponsor with native token on Mantle
 };
 
 export const tokenB = {
   base: "0xa9a0179e045cF39C5F4d914583dc3648DfBDeeF1",
   optimism: "0xd926e338e047aF920F59390fF98A3114CCDcab4a",
+  mantle: "0x76501186fB44d508b9aeC50899037F33C6FF4A36",
 };
 
 export const demoNFTs = {
   base: "0xD129bda7CE0888d7Fd66ff46e7577c96984d678f",
   optimism: "0x9999999999999999999999999999999999999999",
+  mantle: "0x824a4c49a1306F0a5e2e05c8e93510442363893e", // DEMO: DemoNativeNFT on Mantle
 };
 
 export const chainIDs = {
   base: baseSepolia.id,
   optimism: optimismSepolia.id,
+  mantle: mantleSepoliaTestnet.id,
 };
 
 export function isValidChain(chain: string): chain is supportedChain {
-  return chain === "optimism" || chain === "base";
+  return chain === "optimism" || chain === "base" || chain === "mantle";
 }

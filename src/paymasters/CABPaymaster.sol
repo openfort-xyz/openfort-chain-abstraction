@@ -67,7 +67,12 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
     }
 
     function withdraw(address token, uint256 amount) external override onlyOwner {
-        IERC20(token).safeTransfer(owner(), amount);
+        if (token == NATIVE_TOKEN) {
+            (bool success,) = payable(owner()).call{value: amount}("");
+            require(success, "Native token transfer failed");
+        } else {
+            IERC20(token).safeTransfer(owner(), amount);
+        }
     }
 
     function getHash(PackedUserOperation calldata userOp, uint48 validUntil, uint48 validAfter)
@@ -275,4 +280,6 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         }
         return abi.encodePacked(uint8(repayTokens.length), encodedRepayToken);
     }
+
+    receive() external payable {}
 }

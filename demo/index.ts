@@ -45,7 +45,7 @@ program
   .addOption(
     new Command()
       .createOption("-c, --chain <chain>", "choose chain")
-      .choices(["base", "optimism"]),
+      .choices(["base", "mantle", "optimism"]),
   )
   .requiredOption("-s, --account-salt <salt>", "account salt")
   .action(async ({ chain, accountSalt }) => {
@@ -73,7 +73,7 @@ program
   .addOption(
     new Command()
       .createOption("-c, --chain <chain>", "choose chain")
-      .choices(["base", "optimism"]),
+      .choices(["base", "mantle", "optimism"]),
   )
   .requiredOption("-t, --token <token>", "token address")
   .requiredOption("-a, --amount <amount>", "amount to lock")
@@ -127,7 +127,7 @@ program
   .addOption(
     new Command()
       .createOption("-c, --chain <chain>", "choose chain")
-      .choices(["base", "optimism"]),
+      .choices(["base", "mantle", "optimism"]),
   )
   .action(async ({ chain }) => {
     if (!isValidChain(chain)) {
@@ -143,7 +143,7 @@ program
   .addOption(
     new Command()
       .createOption("-c, --chain <chain>", "choose chain")
-      .choices(["base", "optimism"]),
+      .choices(["base", "mantle", "optimism"]),
   )
   .requiredOption("-i, --ipfs-hash <ipfs-hash>", "ipfs hash")
   .requiredOption("-s, --account-salt <salt>", "account salt")
@@ -164,13 +164,26 @@ program
         version: "0.7",
       },
     });
+
     const accountAddress = await account.getAddress();
     console.log(`Account Address: ${accountAddress}`);
     const paymaster = openfortContracts[chain].paymaster;
     console.log(`Paymaster: ${paymaster}`);
-    const unsignedUserOp = await bundlerClient.prepareUserOperation({
-      account: account,
-      calls: [
+
+    let calls = [];
+    if (chain === "mantle") {
+      calls = [
+          {
+            to: demoNFTs[chain] as Address,
+            abi: parseAbi(["function mint(string)"]),
+            functionName: "mint",
+            args: [ipfsHash],
+            value: nftPrice, // DEMO: pay with native token on Mantle
+          },
+      ]
+    } else {
+      // On optimism and base, keep paying with ERC20 tokens
+      calls = [
         {
           to: tokenA[chain] as Address,
           abi: parseAbi(["function transferFrom(address, address, uint256)"]),
@@ -189,7 +202,12 @@ program
           functionName: "mint",
           args: [ipfsHash],
         },
-      ],
+      ]
+    }
+
+    const unsignedUserOp = await bundlerClient.prepareUserOperation({
+      account: account,
+      calls: calls,
       verificationGasLimit: 1000000n,
       postVerificationGasLimit: 1000000n,
       preVerificationGas: 1000000n,
@@ -220,7 +238,7 @@ program
     });
     console.log(`UserOp sent: ${hash}`);
     //  TODO: support multiple source chains
-    const srcChain = chain === "base" ? "optimism" : "base";
+    const srcChain = "optimism";
     const invoiceId = await invoiceManager.writeInvoice({
       account: accountAddress,
       nonce: BigInt(unsignedUserOp.nonce),
@@ -277,7 +295,7 @@ program
   .addOption(
     new Command()
       .createOption("-c, --chain <chain>", "choose chain")
-      .choices(["base", "optimism"]),
+      .choices(["base", "mantle", "optimism"]),
   )
   .requiredOption("-t, --token <token>", "token address")
   .requiredOption("-a, --amount <amount>", "amount to send")
@@ -306,7 +324,7 @@ program
   .addOption(
     new Command()
       .createOption("-c, --chain <chain>", "choose chain")
-      .choices(["base", "optimism"]),
+      .choices(["base", "mantle", "optimism"]),
   )
   .requiredOption("-p, --proof <proof>", "proof")
   .requiredOption("-i, --invoice-id <invoice-id>", "invoice id")
@@ -352,7 +370,7 @@ program
   .addOption(
     new Command()
       .createOption("-c, --chain <chain>", "choose chain")
-      .choices(["base", "optimism"]),
+      .choices(["base", "mantle", "optimism"]),
   )
   .action(async ({ chain }) => {
     if (!isValidChain(chain)) {
@@ -383,7 +401,7 @@ program
   .addOption(
     new Command()
       .createOption("-c, --chain <chain>", "choose chain")
-      .choices(["base", "optimism"]),
+      .choices(["base", "mantle", "optimism"]),
   )
   .requiredOption("-s, --account-salt <salt>", "account salt")
   .action(async ({ chain, accountSalt }) => {
@@ -453,7 +471,7 @@ program
   .addOption(
     new Command()
       .createOption("-c, --chain <chain>", "choose chain")
-      .choices(["base", "optimism"]),
+      .choices(["base", "mantle", "optimism"]),
   )
   .requiredOption("-s, --account-salt <salt>", "account salt")
   .action(async ({ chain, accountSalt }) => {
