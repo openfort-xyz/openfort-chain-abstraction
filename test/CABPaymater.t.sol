@@ -213,6 +213,9 @@ contract CABPaymasterTest is Test {
         (bytes memory context, uint256 validationData) =
             paymaster.validatePaymasterUserOp(userOp, userOpHash, type(uint256).max);
 
+        uint256 allowanceAfterValidation = mockERC20.allowance(address(paymaster), userOp.sender);
+        assertEq(allowanceAfterValidation, 500);
+
         // validate postOp
         // This is the event that we must track on dest chain and prove on source chain with Polymer proof system
 
@@ -225,6 +228,9 @@ contract CABPaymasterTest is Test {
         vm.expectEmit(true, true, true, false);
         emit IInvoiceManager.InvoiceCreated(expectedInvoiceId, rekt, address(paymaster));
         paymaster.postOp(IPaymaster.PostOpMode.opSucceeded, context, 1222, 42);
+
+        uint256 allowanceAfterExecution = mockERC20.allowance(address(paymaster), userOp.sender);
+        assertEq(allowanceAfterExecution, 0);
     }
 
     function testGetInvoiceId() public {

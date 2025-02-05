@@ -14,7 +14,6 @@ import {IPaymasterVerifier} from "../interfaces/IPaymasterVerifier.sol";
 import {ICrossL2Prover} from "@vibc-core-smart-contracts/contracts/interfaces/ICrossL2Prover.sol";
 import {LibBytes} from "@solady/utils/LibBytes.sol";
 
-
 /**
  * @title CABPaymaster
  * @dev A paymaster used in chain abstracted balance to sponsor the gas fee and tokens cross-chain.
@@ -30,6 +29,8 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
 
     uint256 private constant VALID_TIMESTAMP_OFFSET = PAYMASTER_DATA_OFFSET;
     uint256 private constant SIGNATURE_OFFSET = VALID_TIMESTAMP_OFFSET + 12;
+
+    address public constant NATIVE_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     constructor(
         IEntryPoint _entryPoint,
@@ -62,10 +63,7 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         (uint256 logIndex, bytes memory proof) = abi.decode(_proof, (uint256, bytes));
         (,, bytes[] memory topics,) = crossL2Prover.validateEvent(logIndex, proof);
 
-        return (
-            LibBytes.eqs(topics[0], IInvoiceManager.InvoiceCreated.selector) &&
-            LibBytes.eqs(topics[1], invoiceId)
-        );
+        return (LibBytes.eqs(topics[0], IInvoiceManager.InvoiceCreated.selector) && LibBytes.eqs(topics[1], invoiceId));
     }
 
     function withdraw(address token, uint256 amount) external override onlyOwner {
@@ -129,9 +127,21 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         (uint256 sponsorTokenLength, SponsorToken[] memory sponsorTokens) = parseSponsorTokenData(sponsorTokenData);
 
         // revoke the approval at the end of userOp
-        for (uint256 i = 0; i < sponsorTokenLength; i++) {
-            SponsorToken memory sponsorToken = sponsorTokens[i];
-            IERC20(sponsorToken.token).approve(sponsorToken.spender, sponsorToken.amount);
+        for (uint256 i = 0; i < sponsorTokenLength;) {
+            address token = sponsorTokens[i].token;
+            address spender = sponsorTokens[i].spender;
+            uint256 amount = sponsorTokens[i].amount;
+
+            if (token == NATIVE_TOKEN) {
+                (bool success,) = payable(spender).call{value: amount}("");
+                require(success, "Native token transfer failed");
+            } else {
+                require(IERC20(token).approve(spender, amount), "Approve failed");
+            }
+
+            unchecked {
+                i++;
+            }
         }
 
         bytes32 invoiceId =
@@ -161,12 +171,22 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         bytes calldata sponsorTokenData = context[84:];
 
         (uint8 sponsorTokenLength, SponsorToken[] memory sponsorTokens) = parseSponsorTokenData(sponsorTokenData);
-        for (uint8 i = 0; i < sponsorTokenLength; i++) {
-            SponsorToken memory sponsorToken = sponsorTokens[i];
-            IERC20(sponsorToken.token).approve(sponsorToken.spender, 0);
+        for (uint8 i = 0; i < sponsorTokenLength;) {
+            address token = sponsorTokens[i].token;
+            address spender = sponsorTokens[i].spender;
+            if (token != NATIVE_TOKEN) {
+                require(IERC20(token).approve(spender, 0), "Reset approval failed");
+            }
+            unchecked {
+                i++;
+            }
         }
         // TODO: Batch Proving Optimistation -> write in settlement contract on `opSucceeded`
         if (mode == PostOpMode.opSucceeded) {
+            //emit IInvoiceManager.InvoiceCreated(bytes32(context[:32]), address(bytes20(context[32:52])), address(this));
+
+            // This add ~= 100k gas compared to only emitting the InvoiceCreated event
+            // Question: is storing the invoices onchain truly necessary?
             bytes32 invoiceId = bytes32(context[:32]);
             address account = address(bytes20(context[32:52]));
             uint256 nonce = uint256(bytes32(context[52:84]));
