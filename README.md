@@ -1,63 +1,60 @@
 # Openfort Ecosystem Abstraction
 
 ## Overview
-Ecosystems serve as parent entities for groups of apps operating across different blockchains. Openfort [**ecosystem wallets**](https://www.openfort.xyz/docs/guides/ecosystem) enable seamless interoperability between applications, allowing ecosystems to design their ideal, unified wallet experience. The next evolution is consolidating user liquidity across apps, providing a single, unified balance instantly spendable across the ecosystem. This vision will be powered by Openfort's chain abstraction implementation based on [MagicSpend++](https://ethresear.ch/t/magicspend-spend-now-debit-later/19678/9) hosted in this repository.
+Ecosystems are parent entities for groups of apps operating across different blockchains or standalone layer 2 networks. Openfort [**ecosystem wallets**](https://www.openfort.xyz/docs/guides/ecosystem) enable seamless interoperability between applications, allowing ecosystems to design their ideal, unified wallet experience. The next evolution is consolidating user liquidity across apps, providing a single, unified balance instantly spendable across the ecosystem. This vision will be powered by Openfort's chain abstraction implementation based on [MagicSpend++](https://ethresear.ch/t/magicspend-spend-now-debit-later/19678/9) hosted in this repository.
 
 With this setup, ecosystems can deploy tailor-made 4337 chain abstraction infrastructure.
 They become Liquidity Providers (LPs) for their users, sharing with them the value that would otherwise have been captured by solvers/fillers.
+They own their users' experience from the wallet to the chain.
 
 
 You will find *at least* the following contracts:
+
+* Chain Abstraction Paymaster
 * Time-locked Vault
 * Vault Manager
-* Chain Abstraction Paymaster
 * Invoice Manager
 
 ## System Architecture
 
 ![architecture](./assets/archi.jpg)
 
-
-## Zoom on UserOp paymasterAndData
+## Zoom on userOp paymasterAndData
 
 ![paymasterAndData](./assets/paymasterAndData.png)
 
-## Ecosystem Chain Abstraction Settings: accessible fromOpenfort Dashboard
+## System Components & assumptions
 
-#### Vault
+### Time-locked Vault
 - Define locking period
-- Set ERC20 ticker? (depends if we decide that vault shares are ERC20)
 - Deploy on any chain
 - Define any ERC20 / native asset (each asset must have a correspondence in dollars)
+- Define the yield strategy
 
-Ecosystems can choose to pre-fund their users’ accounts to reduce friction.
-=> if it doesn't then user *MUST* lock funds before activating chain abstraction 🚩
+_Note:_ "locking" can be simplified into a **SEND** transaction from an EOA to the Smart Contract Account. A backend watcher service could listen for `received` events and automatically lock the funds (i.e., transfer them to the time-locked vault). This approach would require users to sign a session key for the watcher service.
 
-_Note:_ This "locking" can be simplified into a **SEND** transaction from an EOA to an AA. A backend watcher service could listen for `received` events and automatically lock the funds (i.e., transfer them to the time-locked vault). This approach would require users to sign a session key for the watcher service.
 
-**Q:** Should the ecosystem remain the owner of the funds?
+### Chain Abstraction Paymaster
 
-#### Paymaster
+The Paymaster fronts the funds on the destination chain for the user if they _HAVE_ enough locked balance (checked by Openfort Backend).
+The Paymaster contract will then be reimbursed on the source chain(s). Ni1o: user has 100@A, 50@B, and spends 130@C
+
 * Set/update the Paymaster owner address (ecosystem *MUST* own the Paymaster).
 * Fund/withdraw Paymaster balance (Openfort crafts the transaction, but the ecosystem owner _MUST_ sign it).
-* Set a webhook to receive alerts when the Paymaster balance falls below a certain threshold.
-	The Paymaster fronts the funds on the destination chain for the user if they _HAVE_ enough locked balance (checked by Openfort Paymaster Service). The Paymaster contract will then be reimbursed on the source chain(s). Ni1o: user has 100@A, 50@B, and spends 130@C
+* Ragequit > withdraw all funds from all Paymasters
+* Receive webhook alerts when the Paymaster balance falls below a certain threshold to enable rebalancing.
 
-### Trust assumptions:
+### Trust assumptions
 
-* The system relies on cross-L2 execution proofs enabled by [Polymer](https://www.polymerlabs.org/), eliminating the need for Users to trust Openfort or the Ecosystem. To recover funds locked in source chain vaults on behalf of the ecosystem, Openfort must prove the execution of the User Operation (UserOP) on the remote chain. There is no refund on source chain without the corresponding remote chain execution proof.
+* The system relies on cross-L2 execution proofs enabled by [Polymer](https://www.polymerlabs.org/), eliminating the need for Users to trust Openfort or the Ecosystem. To recover funds locked in source chain vaults on behalf of the ecosystem, Openfort must prove the execution of the userOp on the remote chain. There is no refund on source chain without the corresponding remote chain execution proof. The InvoiceManager track invoices onchain to prevent double-refund.
+* Openfort does not have custody of funds in the Ecosystem Paymaster because the userOp is co-signed within a secure enclave, following predefined policies set by the ecosystem.
 
 
-### Chain Abstraction Activation process
+### Onchain deployments
 
-*for each* blockchain supported by the ecosystem:
-* Deploy a custom ERC20 with ecosystem ticker representing the vaults' common "shares" (optional, share be represented as uint256 in the Vault implementation)
-* Deploy one time-locked Vault implementation per supported ERC20, here is some inspiration:
-    - [ERC-4626 Tokenize-Vaults](https://eips.ethereum.org/EIPS/eip-4626)
-    - [ERC-7575 Multi-Asset vaults](https://eips.ethereum.org/EIPS/eip-7575)
-* Deploy Vault Manager
-* Deploy Invoice Manager
-* Deploy the Chain Abstraction Paymaster
+One time action by Openfort: Deploy Vaults, VaultManager and InvoiceManager.
+
+->> LP as a Service: Deploy the Chain Abstraction Paymaster *on each* blockchain supported by the ecosystem.
 
 
 # Local Development
