@@ -12,6 +12,7 @@ import {IInvoiceManager} from "../interfaces/IInvoiceManager.sol";
 import {IVault} from "../interfaces/IVault.sol";
 import {IPaymasterVerifier} from "../interfaces/IPaymasterVerifier.sol";
 import {ICrossL2Prover} from "@vibc-core-smart-contracts/contracts/interfaces/ICrossL2Prover.sol";
+import {ILiquidityManager} from "../interfaces/ILiquidityManager.sol";
 import {LibBytes} from "@solady/utils/LibBytes.sol";
 
 /**
@@ -24,6 +25,7 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
 
     IInvoiceManager public immutable invoiceManager;
     ICrossL2Prover public immutable crossL2Prover;
+    ILiquidityManager public immutable liquidityManager;
 
     address public immutable verifyingSigner;
 
@@ -36,12 +38,15 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         IEntryPoint _entryPoint,
         IInvoiceManager _invoiceManager,
         ICrossL2Prover _crossL2Prover,
+        ILiquidityManager _liquidityManager,
         address _verifyingSigner,
         address _owner
-    ) BasePaymaster(_entryPoint, _owner) {
+    ) BasePaymaster(_entryPoint) {
         invoiceManager = _invoiceManager;
         crossL2Prover = _crossL2Prover;
+        liquidityManager = _liquidityManager;
         verifyingSigner = _verifyingSigner;
+        transferOwnership(_owner);
     }
 
     /// @inheritdoc IPaymasterVerifier
@@ -111,56 +116,130 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         );
     }
 
-    function _validatePaymasterUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash, uint256 requiredPreFund)
-        internal
-        override
-        returns (bytes memory context, uint256 validationData)
-    {
+    function _validatePaymasterUserOp(
+        PackedUserOperation calldata userOp,
+        bytes32 userOpHash,
+        uint256 requiredPreFund
+    ) internal virtual override returns (bytes memory context, uint256 validationData) {
         (requiredPreFund);
         address sender = userOp.getSender();
         (uint48 validUntil, uint48 validAfter, bytes calldata signature) =
             parsePaymasterAndData(userOp.paymasterAndData);
 
-        (bytes calldata repayTokenData, bytes calldata sponsorTokenData, bytes memory paymasterSignature) =
-            parsePaymasterSignature(signature);
+        // Verify signature
+        bytes32 hash = getHash(userOp, validUntil, validAfter);
+        require(verifyingSigner == ECDSA.recover(hash, signature), "CABPaymaster: INVALID_SIGNATURE");
 
-        (uint256 sponsorTokenLength, SponsorToken[] memory sponsorTokens) = parseSponsorTokenData(sponsorTokenData);
+        // Parse token data from signature
+        (bytes calldata repayTokenData, bytes calldata sponsorTokenData,) = parsePaymasterSignature(signature);
 
-        // revoke the approval at the end of userOp
-        for (uint256 i = 0; i < sponsorTokenLength;) {
-            address token = sponsorTokens[i].token;
-            address spender = sponsorTokens[i].spender;
-            uint256 amount = sponsorTokens[i].amount;
+        // Handle token transfers and swaps if needed
+        _handleTokenOperations(repayTokenData, sponsorTokenData);
 
-            if (token == NATIVE_TOKEN) {
-                (bool success,) = payable(spender).call{value: amount}("");
-                require(success, "Native token transfer failed");
-            } else {
-                require(IERC20(token).approve(spender, amount), "Approve failed");
+        validationData = _packValidationData(false, validUntil, validAfter);
+        context = "";
+    }
+
+    /**
+     * @dev Handles token operations including transfers and swaps if needed
+     * @param repayTokenData Data about tokens to be repaid
+     * @param sponsorTokenData Data about tokens to be sponsored
+     */
+    function _handleTokenOperations(bytes calldata repayTokenData, bytes calldata sponsorTokenData) internal {
+        // Parse token data
+        (uint8 repayTokenLength, address[] memory repayTokens, address[] memory repaySpenders, uint256[] memory repayAmounts) = 
+            _parseTokenData(repayTokenData);
+        (uint8 sponsorTokenLength, address[] memory sponsorTokens, address[] memory sponsorSpenders, uint256[] memory sponsorAmounts) = 
+            _parseTokenData(sponsorTokenData);
+
+        // Handle repay tokens
+        for (uint8 i = 0; i < repayTokenLength;) {
+            address token = repayTokens[i];
+            address spender = repaySpenders[i];
+            uint256 amount = repayAmounts[i];
+
+            if (token != NATIVE_TOKEN) {
+                uint256 paymasterBalance = IERC20(token).balanceOf(address(this));
+                if (paymasterBalance < amount) {
+                    // Source liquidity from MiniSwap if needed
+                    uint256 amountNeeded = amount - paymasterBalance;
+                    try liquidityManager.swapExactTokensForTokens(
+                        token,
+                        token,
+                        amountNeeded,
+                        amountNeeded * 95 / 100 // Allow 5% slippage
+                    ) returns (uint256 amountReceived) {
+                        require(amountReceived + paymasterBalance >= amount, "CABPaymaster: INSUFFICIENT_LIQUIDITY_AFTER_SWAP");
+                    } catch {
+                        revert("CABPaymaster: LIQUIDITY_SOURCING_FAILED");
+                    }
+                }
+                IERC20(token).safeTransferFrom(spender, address(this), amount);
             }
+            unchecked {
+                ++i;
+            }
+        }
+
+        // Handle sponsor tokens
+        for (uint8 i = 0; i < sponsorTokenLength;) {
+            address token = sponsorTokens[i];
+            address spender = sponsorSpenders[i];
+            uint256 amount = sponsorAmounts[i];
+
+            if (token != NATIVE_TOKEN) {
+                uint256 paymasterBalance = IERC20(token).balanceOf(address(this));
+                if (paymasterBalance < amount) {
+                    // Source liquidity from MiniSwap if needed
+                    uint256 amountNeeded = amount - paymasterBalance;
+                    try liquidityManager.swapExactTokensForTokens(
+                        token,
+                        token,
+                        amountNeeded,
+                        amountNeeded * 95 / 100 // Allow 5% slippage
+                    ) returns (uint256 amountReceived) {
+                        require(amountReceived + paymasterBalance >= amount, "CABPaymaster: INSUFFICIENT_LIQUIDITY_AFTER_SWAP");
+                    } catch {
+                        revert("CABPaymaster: LIQUIDITY_SOURCING_FAILED");
+                    }
+                }
+                IERC20(token).safeTransferFrom(spender, address(this), amount);
+            }
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    function _parseTokenData(bytes calldata tokenData)
+        internal
+        pure
+        returns (uint8 tokenLength, address[] memory tokens, address[] memory spenders, uint256[] memory amounts)
+    {
+        tokenLength = uint8(bytes1(tokenData[0]));
+
+        // 1 byte: length
+        // length * 72 bytes: (20 bytes: token adddress + 20 bytes: spender address + 32 bytes: amount)
+
+        require(tokenData.length == 1 + tokenLength * 72, "CABPaymaster: invalid tokenData length");
+
+        tokens = new address[](tokenLength);
+        spenders = new address[](tokenLength);
+        amounts = new uint256[](tokenLength);
+        for (uint256 i = 0; i < uint256(tokenLength);) {
+            uint256 offset = 1 + i * 72;
+            address token = address(bytes20(tokenData[offset:offset + 20]));
+            address spender = address(bytes20(tokenData[offset + 20:offset + 40]));
+            uint256 amount = uint256(bytes32(tokenData[offset + 40:offset + 72]));
+
+            tokens[i] = token;
+            spenders[i] = spender;
+            amounts[i] = amount;
 
             unchecked {
                 i++;
             }
         }
-
-        bytes32 invoiceId =
-            invoiceManager.getInvoiceId(sender, address(this), userOp.nonce, block.chainid, repayTokenData);
-
-        bytes32 hash = MessageHashUtils.toEthSignedMessageHash(getHash(userOp, validUntil, validAfter));
-
-        // don't revert on signature failure: return SIG_VALIDATION_FAILED
-        if (verifyingSigner != ECDSA.recover(hash, paymasterSignature)) {
-            return (
-                abi.encodePacked(invoiceId, sender, userOp.nonce, sponsorTokenData[0:1 + sponsorTokenLength * 72]),
-                _packValidationData(true, validUntil, validAfter)
-            );
-        }
-
-        return (
-            abi.encodePacked(invoiceId, sender, userOp.nonce, sponsorTokenData[0:1 + sponsorTokenLength * 72]),
-            _packValidationData(false, validUntil, validAfter)
-        );
     }
 
     function _postOp(PostOpMode mode, bytes calldata context, uint256 actualGasCost, uint256 actualUserOpFeePerGas)
