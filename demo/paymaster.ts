@@ -33,8 +33,9 @@ export function getPaymasterActions(chain: supportedChain): PaymasterActions {
     getPaymasterData: async (
       parameters: GetPaymasterDataParameters,
     ): Promise<GetPaymasterDataReturnType> => {
-      const validAfter = await getBlockTimestamp(chain);
-      const validUntil = validAfter + 1_000_000n;
+      const currentBlockTimestamp = await getBlockTimestamp(chain);
+      const validAfter = currentBlockTimestamp - 1_000_000n;
+      const validUntil = currentBlockTimestamp + 1_000_000n;
 
       const postVerificationGas =
         parameters.paymasterPostOpGasLimit || BigInt(1e5);
@@ -89,9 +90,12 @@ export function getPaymasterActions(chain: supportedChain): PaymasterActions {
       parameters: GetPaymasterStubDataParameters,
     ): Promise<GetPaymasterStubDataReturnType> => {
       return {
-        paymasterAndData: (
+        paymaster: getAddress(pmAddress),
+        paymasterData: (
           await getPaymasterActions(chain).getPaymasterData(parameters)
-        ).paymasterAndData as Hex,
+        ).paymasterData as Hex,
+        paymasterPostOpGasLimit: BigInt(1e6),
+        paymasterVerificationGasLimit: BigInt(1e6),
       };
     },
   };
