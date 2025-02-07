@@ -2,9 +2,10 @@
 pragma solidity ^0.8.0;
 
 import {Script, console} from "forge-std/Script.sol";
-import {IEntryPoint} from "account-abstraction/core/EntryPoint.sol";
 import {IInvoiceManager} from "../src/interfaces/IInvoiceManager.sol";
 import {IVaultManager} from "../src/interfaces/IVaultManager.sol";
+
+import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 import {CheckOrDeployEntryPoint} from "./auxiliary/checkOrDeployEntrypoint.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {UpgradeableOpenfortProxy} from "../src/proxy/UpgradeableOpenfortProxy.sol";
@@ -14,6 +15,7 @@ import {CABPaymaster} from "../src/paymasters/CABPaymaster.sol";
 import {InvoiceManager} from "../src/core/InvoiceManager.sol";
 
 import {ICrossL2Prover} from "@vibc-core-smart-contracts/contracts/interfaces/ICrossL2Prover.sol";
+import {PolymerPaymasterVerifier} from "../src/paymasters/PolymerPaymasterVerifier.sol";
 
 // forge script script/deployChainAbstractionSetup.s.sol:DeployChainAbstractionSetup "[0xusdc, 0xusdt]" --sig "run(address[])" --via-ir --rpc-url=127.0.0.1:854
 
@@ -83,11 +85,17 @@ contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint {
 
         IEntryPoint entryPoint = checkOrDeployEntryPoint();
 
-        CABPaymaster paymaster = new CABPaymaster{salt: versionSalt}(
-            entryPoint, IInvoiceManager(address(invoiceManager)), ICrossL2Prover(crossL2Prover), verifyingSigner, owner
+        CABPaymaster paymaster =
+            new CABPaymaster{salt: versionSalt}(IInvoiceManager(address(invoiceManager)), verifyingSigner, owner);
+
+        paymaster.initialize(tokens);
+        console.log("Paymaster Address", address(paymaster));
+
+        PolymerPaymasterVerifier polymerPaymasterVerifier = new PolymerPaymasterVerifier{salt: versionSalt}(
+            IInvoiceManager(address(invoiceManager)), ICrossL2Prover(crossL2Prover), owner
         );
 
-        console.log("Paymaster Address", address(paymaster));
+        console.log("PolymerPaymasterVerifier Address", address(polymerPaymasterVerifier));
         vm.stopBroadcast();
     }
 }
