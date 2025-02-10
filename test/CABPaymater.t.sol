@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Test, console} from "forge-std/Test.sol";
+import "forge-std/Test.sol";
 import {EntryPoint} from "account-abstraction/core/EntryPoint.sol";
 import {PackedUserOperation} from "account-abstraction/core/UserOperationLib.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
@@ -165,10 +165,10 @@ contract CABPaymasterTest is Test {
             chainId: OPTIMISM_CHAIN_ID
         });
         bytes memory encodedRepayToken = encodeRepayToken(repayTokens);
-        // assertEq(
-        //     encodedRepayToken,
-        //     0x018e2048c85Eae2a4443408C284221B33e6190646300000000000000000000000000000000000000000000000000000000000001f40000000000000000000000000000000000000000000000000000000000000aa37dc
-        // );
+        assertEq(
+            encodedRepayToken,
+            hex"018e2048c85Eae2a4443408C284221B33e6190646300000000000000000000000000000000000000000000000000000000000001f40000000000000000000000000000000000000000000000000000000000aa37dc"
+        );
     }
 
     function testValidateUserOp() public {

@@ -116,28 +116,48 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         );
     }
 
-    function _validatePaymasterUserOp(
-        PackedUserOperation calldata userOp,
-        bytes32 userOpHash,
-        uint256 requiredPreFund
-    ) internal virtual override returns (bytes memory context, uint256 validationData) {
+
+    function _validatePaymasterUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash, uint256 requiredPreFund)
+        internal
+        override
+        returns (bytes memory context, uint256 validationData)
+    {
         (requiredPreFund);
         address sender = userOp.getSender();
         (uint48 validUntil, uint48 validAfter, bytes calldata signature) =
             parsePaymasterAndData(userOp.paymasterAndData);
 
-        // Verify signature
-        bytes32 hash = getHash(userOp, validUntil, validAfter);
-        require(verifyingSigner == ECDSA.recover(hash, signature), "CABPaymaster: INVALID_SIGNATURE");
-
-        // Parse token data from signature
-        (bytes calldata repayTokenData, bytes calldata sponsorTokenData,) = parsePaymasterSignature(signature);
+        (bytes calldata repayTokenData, bytes calldata sponsorTokenData, bytes memory paymasterSignature) =
+            parsePaymasterSignature(signature);
 
         // Handle token transfers and swaps if needed
         _handleTokenOperations(repayTokenData, sponsorTokenData);
 
-        validationData = _packValidationData(false, validUntil, validAfter);
-        context = "";
+        (uint256 sponsorTokenLength, SponsorToken[] memory sponsorTokens) = parseSponsorTokenData(sponsorTokenData);
+
+        // revoke the approval at the end of userOp
+        for (uint256 i = 0; i < sponsorTokenLength; i++) {
+            SponsorToken memory sponsorToken = sponsorTokens[i];
+            IERC20(sponsorToken.token).approve(sponsorToken.spender, sponsorToken.amount);
+        }
+
+        bytes32 invoiceId =
+            invoiceManager.getInvoiceId(sender, address(this), userOp.nonce, block.chainid, repayTokenData);
+
+        bytes32 hash = MessageHashUtils.toEthSignedMessageHash(getHash(userOp, validUntil, validAfter));
+
+        // don't revert on signature failure: return SIG_VALIDATION_FAILED
+        if (verifyingSigner != ECDSA.recover(hash, paymasterSignature)) {
+            return (
+                abi.encodePacked(invoiceId, sender, userOp.nonce, sponsorTokenData[0:1 + sponsorTokenLength * 72]),
+                _packValidationData(true, validUntil, validAfter)
+            );
+        }
+
+        return (
+            abi.encodePacked(invoiceId, sender, userOp.nonce, sponsorTokenData[0:1 + sponsorTokenLength * 72]),
+            _packValidationData(false, validUntil, validAfter)
+        );
     }
 
     /**
