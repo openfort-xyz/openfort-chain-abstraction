@@ -33,53 +33,61 @@ export type OpenfortContracts = {
   vaults: Record<token, Address>; // The vaults for each token
 };
 
+// NOTE: cabPaymaster *MUST* have the same address on all chains of the ecosystem
+// Its address is included in the invoice on dest chain, which is used for refunds on the source chains
+// Use the CABPaymasterFactory to have deterministic addresses for each ecosystem
+
+const cabPaymaster = "0xA6DB931Adc6636e14bC95F5a9f33B3DB6c4aFF96";
+const cabPaymasterVerifier = "0x7a1F940033df9CF580a9c9555e786817F17C683E";
+const invoiceManager = "0x6C739d3A4dA696D730dBAd2c2B8ca6668D415d91";
+
 export const openfortContracts: Record<supportedChain, OpenfortContracts> = {
   base: {
     adminPaymaster: "0x9964Cf8cDfeCdFc3DA38731FdB1a5Ec343BDe25b",
-    cabPaymaster: "0xbbeF4b5266169A711b1819bC0Ab10112cA4D24bB",
-    paymasterVerifier: "0xd5310f1C2d3A7eCd96283B30874Af26648Eeb4eE",
-    invoiceManager: "0xBC11EE7d2F3D74F5A6a5aDD3457908870BFcF37b",
-    vaultManager: "0xc3767cCed71c41a66802b25a8a667Aee1DbE2826",
+    cabPaymaster: cabPaymaster,
+    paymasterVerifier: cabPaymasterVerifier,
+    invoiceManager: invoiceManager,
+    vaultManager: "0x5f8B5EF192e60D7c01D6F4c1c31dC191EE0E2063",
     vaults: {
       "0xfF3311cd15aB091B00421B23BcB60df02EFD8db7":
-        "0x258840B7e74e4660089140A8104ABa9bd67C0E9b",
+        "0x3871Ab9265B096a18fa682982B9E058324F3Af60",
       "0xa9a0179e045cF39C5F4d914583dc3648DfBDeeF1":
-        "0xa0c64E640573C405B77637203abC2A9661008674",
+        "0x2E5152910b6b8f4aFED6193843C5AD1eD731adc5",
     },
   },
   optimism: {
     adminPaymaster: "0xF9Bc9D52b9686DD2D553332a86D1c39BE16f5AF9",
-    cabPaymaster: "0x4036469C65800b6A2278BB9603c3Aae8e22e046d",
-    paymasterVerifier: "0x0c02E01B0884B50b89EeF05AFDe65334B82aA274",
-    invoiceManager: "0x172E376da80575c2aD3A68854F7fB6083f134e1E",
-    vaultManager: "0xaf57C2e05E7aE190E4Feb989d92D3008E593cADe",
+    cabPaymaster: cabPaymaster,
+    paymasterVerifier: cabPaymasterVerifier,
+    invoiceManager: invoiceManager,
+    vaultManager: "0x9b93C1a32E78edaBC078911505B7666Df9DF3bB7",
     vaults: {
       "0x2522F4Fc9aF2E1954a3D13f7a5B2683A00a4543A":
-        "0x1c5E9D330BFc00890841D7797e03Df73aab84053",
+        "0x593a9fa6Cd8077FE806e23834a5C59a78CAb5719",
       "0xd926e338e047aF920F59390fF98A3114CCDcab4a":
-        "0xd8dCfc1c65336D542EF857A453C4046eaaE109e4",
+        "0xf36f0F59Bc79de809cEf3E3B86BD4759Fc1e0C55",
     },
   },
   mantle: {
     adminPaymaster: "0x6371FB8d4e1151913BF946d6843501Faf56Ab833",
-    cabPaymaster: "0x6371FB8d4e1151913BF946d6843501Faf56Ab833",
-    paymasterVerifier: "0x34Fb7d3CC87697f54B5BA5d75dD3aa9983544f46",
-    invoiceManager: "0x00C9568D0A7E4eCB9C2085AAa5C8F8B13503cc06",
-    vaultManager: "0xE869AF36EDAa4c7CbCa1632872927629be681BfE",
+    cabPaymaster: cabPaymaster,
+    paymasterVerifier: cabPaymasterVerifier,
+    invoiceManager: invoiceManager,
+    vaultManager: "0xE295199e935925658A97F5f0cAb5fE069305ea57",
     vaults: {
       "0x4855090BbFf14397E1d48C9f4Cd7F111618F071a":
-        "0x30C788123bF7540828CEc9dA861Eca4009DECef8",
+        "0x28E768F281C2Bc46889EE412e86Bb4CA1ed054CD",
       "0x76501186fB44d508b9aeC50899037F33C6FF4A36":
-        "0x537758a6b09D042B12b7C0Cb18CEc466E83640E1",
+        "0xf7E531f59809134a010E43c3A83B3f1E4015E41d",
     },
   },
 };
 
 // TODO: refactor this to only  refer to openfortContracts
 export const vaultA = {
-  base: "0x5502B2Da288Be13F48eE46E3261690Ed4a1e71f9",
-  optimism: "0xaF45f62eB99AD2091440336ca714B21F06525978",
-  mantle: "0x30C788123bF7540828CEc9dA861Eca4009DECef8",
+  base: "0x3871Ab9265B096a18fa682982B9E058324F3Af60",
+  optimism: "0x593a9fa6Cd8077FE806e23834a5C59a78CAb5719",
+  mantle: "0x28E768F281C2Bc46889EE412e86Bb4CA1ed054CD",
 };
 
 export const tokenA = {

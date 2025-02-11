@@ -12,6 +12,7 @@ import {UpgradeableOpenfortProxy} from "../src/proxy/UpgradeableOpenfortProxy.so
 import {BaseVault} from "../src/vaults/BaseVault.sol";
 import {VaultManager} from "../src/vaults/VaultManager.sol";
 import {CABPaymaster} from "../src/paymasters/CABPaymaster.sol";
+import {CABPaymasterFactory} from "../src/paymasters/CABPaymasterFactory.sol";
 import {InvoiceManager} from "../src/core/InvoiceManager.sol";
 
 import {ICrossL2Prover} from "@vibc-core-smart-contracts/contracts/interfaces/ICrossL2Prover.sol";
@@ -24,6 +25,7 @@ contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint {
     uint256 internal withdrawLockBlock = vm.envUint("WITHDRAW_LOCK_BLOCK");
     address internal deployer = vm.addr(deployerPrivKey);
     address internal owner = vm.envAddress("OWNER");
+    address internal paymasterFactoryOwner = vm.envAddress("PAYMASTER_FACTORY_OWNER");
     address internal verifyingSigner = vm.envAddress("VERIFYING_SIGNER");
     bytes32 internal versionSalt = vm.envBytes32("VERSION_SALT");
 
@@ -41,7 +43,7 @@ contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint {
 
         vm.startBroadcast(deployerPrivKey);
 
-        InvoiceManager invoiceManagerImpl = new InvoiceManager();
+        InvoiceManager invoiceManagerImpl = new InvoiceManager{salt: versionSalt}();
         console.log("InvoiceManagerImpl Address", address(invoiceManagerImpl));
 
         InvoiceManager invoiceManager =
@@ -72,7 +74,8 @@ contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint {
             BaseVault vault = BaseVault(
                 payable(
                     new UpgradeableOpenfortProxy{salt: versionSalt}(
-                        address(new BaseVault()),
+                        // Note: avoid create2 collision by using a different salt for each vault
+                        address(new BaseVault{salt: versionSalt << i}()),
                         abi.encodeWithSelector(
                             BaseVault.initialize.selector, IVaultManager(address(vaultManager)), IERC20(token)
                         )
@@ -85,10 +88,14 @@ contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint {
 
         IEntryPoint entryPoint = checkOrDeployEntryPoint();
 
-        CABPaymaster paymaster =
-            new CABPaymaster{salt: versionSalt}(IInvoiceManager(address(invoiceManager)), verifyingSigner, owner);
+        CABPaymasterFactory paymasterFactory = new CABPaymasterFactory{salt: versionSalt}(
+            paymasterFactoryOwner,
+            address(invoiceManager),
+            verifyingSigner
+        );
 
-        paymaster.initialize(tokens);
+        address paymaster = paymasterFactory.createCABPaymaster(owner, versionSalt, tokens);
+
         console.log("Paymaster Address", address(paymaster));
 
         PolymerPaymasterVerifier polymerPaymasterVerifier = new PolymerPaymasterVerifier{salt: versionSalt}(

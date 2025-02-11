@@ -333,7 +333,7 @@ program
     console.log(invoiceWithRepayTokens);
     const walletClient = walletClients[chain];
 
-    // we can hard  code logIndex since it is the index of the log within the tx
+    // we can hard code logIndex since it is the index of the log within the tx
     // TODO: validate receipt + parselog to implement refund batching
     const logIndex = BigInt(8);
 
