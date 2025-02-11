@@ -8,6 +8,8 @@ import {
   numberToHex,
   pad,
   toHex,
+  decodeFunctionData,
+  parseAbi,
 } from "viem";
 import { publicClients } from "./viemClients";
 import {
@@ -27,6 +29,23 @@ export async function getBlockTimestamp(chain: supportedChain) {
 export async function getBlockNumber(chain: supportedChain) {
   const block = await publicClients[chain].getBlockNumber();
   return block;
+}
+
+export function isAdminCall(callData: Hex) {
+  // registerPaymaster
+  const adminSelectors = ["0xa23f2985"];
+
+  try {
+    const decoded = decodeFunctionData({
+      data: callData,
+      abi: parseAbi(["function execute(address, uint256, bytes)"]),
+    });
+    const selector = decoded.args[2].slice(0, 10);
+    return adminSelectors.includes(selector);
+  } catch (error) {
+    // Note: executeBatch doesn't support admin calls
+    return false;
+  }
 }
 
 export function computeHash(
@@ -74,7 +93,7 @@ export function computeHash(
       userOp.preVerificationGas,
       pad(userOp.gasFees, { size: 32 }),
       BigInt(chainIDs[chain]),
-      getAddress(openfortContracts[chain].paymaster),
+      getAddress(openfortContracts[chain].cabPaymaster),
       Number(validUntil),
       Number(validAfter),
     ],

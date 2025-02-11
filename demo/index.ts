@@ -11,12 +11,7 @@ import {
   openfortContracts,
   vaultA,
 } from "./constants";
-import {
-  Address,
-  encodeAbiParameters,
-  Hex,
-  parseAbi,
-} from "viem";
+import { Address, encodeAbiParameters, Hex, parseAbi } from "viem";
 import { toSimpleSmartAccount } from "./SimpleSmartAccount";
 import {
   entryPoint07Address,
@@ -167,20 +162,20 @@ program
 
     const accountAddress = await account.getAddress();
     console.log(`Account Address: ${accountAddress}`);
-    const paymaster = openfortContracts[chain].paymaster;
+    const paymaster = openfortContracts[chain].cabPaymaster;
     console.log(`Paymaster: ${paymaster}`);
 
     let calls = [];
     if (chain === "mantle") {
       calls = [
-          {
-            to: demoNFTs[chain] as Address,
-            abi: parseAbi(["function mint(string)"]),
-            functionName: "mint",
-            args: [ipfsHash],
-            value: nftPrice, // DEMO: pay with native token on Mantle
-          },
-      ]
+        {
+          to: demoNFTs[chain] as Address,
+          abi: parseAbi(["function mint(string)"]),
+          functionName: "mint",
+          args: [ipfsHash],
+          value: nftPrice, // DEMO: pay with native token on Mantle
+        },
+      ];
     } else {
       // On optimism and base, keep paying with ERC20 tokens
       calls = [
@@ -202,7 +197,7 @@ program
           functionName: "mint",
           args: [ipfsHash],
         },
-      ]
+      ];
     }
 
     const unsignedUserOp = await bundlerClient.prepareUserOperation({
@@ -242,7 +237,7 @@ program
     const invoiceId = await invoiceManager.writeInvoice({
       account: accountAddress,
       nonce: BigInt(unsignedUserOp.nonce),
-      paymaster: openfortContracts[chain].paymaster,
+      paymaster: openfortContracts[chain].cabPaymaster,
       sponsorChainId: BigInt(chainIDs[chain]),
 
       repayTokenInfos: [
@@ -411,7 +406,6 @@ program
     const publicClient = publicClients[chain];
     const bundlerClient = bundlerClients[chain];
 
-    const paymaster = openfortContracts[chain].paymaster;
     const account = await toSimpleSmartAccount({
       owner: ownerAccount,
       client: publicClient,
@@ -435,8 +429,8 @@ program
           ]),
           functionName: "registerPaymaster",
           args: [
-            paymaster,
-            paymaster,
+            openfortContracts[chain].cabPaymaster,
+            openfortContracts[chain].paymasterVerifier,
             (await getBlockTimestamp(chain)) + 1000000n,
           ],
         },

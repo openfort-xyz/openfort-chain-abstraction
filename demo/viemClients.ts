@@ -11,7 +11,6 @@ import { ownerAccount, supportedChain } from "./constants";
 import { getPaymasterActions } from "./paymaster";
 import { mantleSepoliaTestnet } from "viem/chains";
 
-
 // ============================= PUBLIC CLIENTS =============================
 
 const mantleSepoliaPublicClient = createPublicClient({
@@ -34,7 +33,6 @@ export const publicClients: Record<supportedChain, PublicClient> = {
   base: baseSepoliaPublicClient as PublicClient,
   mantle: mantleSepoliaPublicClient as PublicClient,
 };
-
 
 // ============================= WALLET CLIENTS =============================
 
@@ -72,7 +70,6 @@ const baseSepoliaBundlerClient = createBundlerClient({
   ),
 });
 
-
 const optimismBundlerClient = createBundlerClient({
   client: optimismPublicClient,
   paymaster: getPaymasterActions("optimism"),
@@ -93,5 +90,3 @@ export const bundlerClients: Record<supportedChain, BundlerClient> = {
   base: baseSepoliaBundlerClient as BundlerClient,
   mantle: mantleSepoliaBundlerClient as BundlerClient,
 };
-
-

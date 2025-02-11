@@ -40,7 +40,7 @@ contract CABPaymaster is BasePaymaster, Initializable {
     }
 
     function initialize(address[] memory _supportedTokens) public initializer {
-        for (uint256 i = 0; i < _supportedTokens.length; i++) {
+        for (uint256 i = 0; i < _supportedTokens.length; ++i) {
             tokensStore.addSupportedToken(_supportedTokens[i]);
         }
     }
