@@ -32,8 +32,9 @@ export async function getBlockNumber(chain: supportedChain) {
 }
 
 export function isAdminCall(callData: Hex) {
-  // registerPaymaster
-  const adminSelectors = ["0xa23f2985"];
+  // Note: admin methods requires msg.sender to be the smart account addres and are sponsored with DemoAdminPaymaster
+  // InvoiceManager: registerPaymaster, revokePaymaster
+  const adminSelectors = ["0xa23f2985", "0x1b8003c7"];
 
   try {
     const decoded = decodeFunctionData({

@@ -134,7 +134,7 @@ contract CABPaymaster is BasePaymaster, Initializable {
         }
     }
 
-    // ================================================ VIEW POINT ====================================
+    // ================================================ VIEW POINT ========================================
 
     function getHash(PackedUserOperation calldata userOp, uint48 validUntil, uint48 validAfter)
         public

@@ -38,7 +38,7 @@ export type OpenfortContracts = {
 // Use the CABPaymasterFactory to have deterministic addresses for each ecosystem
 
 const cabPaymaster = "0xA6DB931Adc6636e14bC95F5a9f33B3DB6c4aFF96";
-const cabPaymasterVerifier = "0x7a1F940033df9CF580a9c9555e786817F17C683E";
+const cabPaymasterVerifier = "0x00a3E1CaCFb2b2a2CA64Ee8bA9D9a2231D7ccFa9";
 const invoiceManager = "0x6C739d3A4dA696D730dBAd2c2B8ca6668D415d91";
 
 export const openfortContracts: Record<supportedChain, OpenfortContracts> = {
@@ -69,7 +69,7 @@ export const openfortContracts: Record<supportedChain, OpenfortContracts> = {
     },
   },
   mantle: {
-    adminPaymaster: "0x6371FB8d4e1151913BF946d6843501Faf56Ab833",
+    adminPaymaster: "0xabB466C0a5A7ac86EbEC00B413cd35c85f6544AF",
     cabPaymaster: cabPaymaster,
     paymasterVerifier: cabPaymasterVerifier,
     invoiceManager: invoiceManager,

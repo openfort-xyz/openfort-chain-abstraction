@@ -23,8 +23,7 @@ contract DemoAdminPaymaster is BasePaymaster {
     {
         // NOTE: sponsor everything
         // NOTE: return empty context to skip _postOp: https://eips.ethereum.org/EIPS/eip-4337
-        return
-            ("", _packValidationData(false, uint48(block.timestamp + 42 * 10e7), uint48(block.timestamp - 42 * 10e2)));
+        return ("", 0);
     }
 
     function _postOp(PostOpMode mode, bytes calldata context, uint256 actualGasCost, uint256 actualUserOpFeePerGas)

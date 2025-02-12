@@ -60,8 +60,7 @@ library LibTokens {
     function frontToken(address token, address recipient, uint256 amount) internal {
         // NOTE: use forceApprove to support tokens that require the approval
         // to be set to zero before setting it to a non-zero value, such as USDT.
-        return
-            token == NATIVE_TOKEN ? _transferNative(recipient, amount) : IERC20(token).forceApprove(recipient, amount);
+        token == NATIVE_TOKEN ? _transferNative(recipient, amount) : IERC20(token).forceApprove(recipient, amount);
     }
 
     function transferToken(address token, address recipient, uint256 amount) internal {

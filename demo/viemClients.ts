@@ -82,7 +82,10 @@ const optimismBundlerClient = createBundlerClient({
 const mantleSepoliaBundlerClient = createBundlerClient({
   client: mantleSepoliaPublicClient,
   paymaster: getPaymasterActions("mantle"),
-  transport: http("http://127.0.0.1:4337"),
+  //transport: http("http://127.0.0.1:4337"),
+  transport: http(
+    `https://api.pimlico.io/v2/mantle-sepolia/rpc?apikey=${process.env.PIMLICO_API_KEY}`,
+  ),
 });
 
 export const bundlerClients: Record<supportedChain, BundlerClient> = {
