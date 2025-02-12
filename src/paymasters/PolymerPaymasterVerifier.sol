@@ -9,6 +9,7 @@ import {IInvoiceManager} from "../interfaces/IInvoiceManager.sol";
 
 contract PolymerPaymasterVerifier is IPaymasterVerifier, Ownable {
     using LibBytes for bytes;
+
     IInvoiceManager public immutable invoiceManager;
     ICrossL2Prover public immutable crossL2Prover;
 

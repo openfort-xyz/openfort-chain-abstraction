@@ -88,11 +88,8 @@ contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint {
 
         IEntryPoint entryPoint = checkOrDeployEntryPoint();
 
-        CABPaymasterFactory paymasterFactory = new CABPaymasterFactory{salt: versionSalt}(
-            paymasterFactoryOwner,
-            address(invoiceManager),
-            verifyingSigner
-        );
+        CABPaymasterFactory paymasterFactory =
+            new CABPaymasterFactory{salt: versionSalt}(paymasterFactoryOwner, address(invoiceManager), verifyingSigner);
 
         address paymaster = paymasterFactory.createCABPaymaster(owner, versionSalt, tokens);
 

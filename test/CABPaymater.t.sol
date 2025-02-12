@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Test, console} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {PackedUserOperation} from "account-abstraction/core/UserOperationLib.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {CABPaymaster} from "../src/paymasters/CABPaymaster.sol";
@@ -24,7 +24,7 @@ import {PolymerPaymasterVerifier} from "../src/paymasters/PolymerPaymasterVerifi
 contract CABPaymasterTest is Test {
     uint256 immutable BASE_SEPOLIA_CHAIN_ID = 84532;
     uint256 immutable OPTIMISM_CHAIN_ID = 11155420;
-    uint256 immutable PAYMSTER_BASE_MOCK_ERC20_BALANCE = 100000;
+    uint256 immutable PAYMASTER_BASE_MOCK_ERC20_BALANCE = 100000;
 
     CABPaymaster public paymaster;
     InvoiceManager public invoiceManager;
@@ -64,7 +64,6 @@ contract CABPaymasterTest is Test {
             )
         );
         mockERC20 = new MockERC20();
-        console.log("mockERC20", address(mockERC20));
         openfortVault = BaseVault(
             payable(
                 new UpgradeableOpenfortProxy(
@@ -90,7 +89,7 @@ contract CABPaymasterTest is Test {
         paymaster = new CABPaymaster(invoiceManager, verifyingSignerAddress, owner);
         paymaster.initialize(supportedTokens);
 
-        mockERC20.mint(address(paymaster), PAYMSTER_BASE_MOCK_ERC20_BALANCE);
+        mockERC20.mint(address(paymaster), PAYMASTER_BASE_MOCK_ERC20_BALANCE);
 
         assertEq(address(invoiceManager.vaultManager()), address(vaultManager));
         assertEq(address(vaultManager.invoiceManager()), address(invoiceManager));
@@ -355,8 +354,22 @@ contract CABPaymasterTest is Test {
             sponsorChainId: 84532,
             repayTokenInfos: repayTokens
         });
-
-        console.logBytes(abi.encode(invoice));
         assert(polymerPaymasterVerifier.verifyInvoice(invoiceId, invoice, proof));
+    }
+
+    function testCABPaymasterRagequit() public {
+        vm.deal(address(paymaster), 1 ether);
+
+        assertEq(mockERC20.balanceOf(address(paymaster)), PAYMASTER_BASE_MOCK_ERC20_BALANCE);
+        assertEq(address(paymaster).balance, 1 ether);
+
+        vm.startPrank(owner);
+        paymaster.rageQuit();
+
+        assertEq(mockERC20.balanceOf(address(paymaster)), 0);
+        assertEq(address(paymaster).balance, 0);
+
+        assertEq(mockERC20.balanceOf(owner), PAYMASTER_BASE_MOCK_ERC20_BALANCE);
+        assertEq(owner.balance, 1 ether);
     }
 }

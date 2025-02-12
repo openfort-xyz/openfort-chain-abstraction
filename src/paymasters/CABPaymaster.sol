@@ -45,38 +45,29 @@ contract CABPaymaster is BasePaymaster, Initializable {
         }
     }
 
+    // ================================================ ADMIN ZONE =========================================
+
     function withdraw(address token, uint256 amount) external onlyOwner {
-        LibTokens.withdraw(owner(), token, amount);
+        // NOTE: tokenStore.NATIVE_TOKEN will withdraw native
+        LibTokens.transferToken(token, owner(), amount);
     }
 
-    function getHash(PackedUserOperation calldata userOp, uint48 validUntil, uint48 validAfter)
-        public
-        view
-        returns (bytes32)
-    {
-        // can't use userOp.hash(), since it contains also the paymasterAndData itself.
-        address sender = userOp.getSender();
-        (,, bytes calldata signature) = parsePaymasterAndData(userOp.paymasterAndData);
-
-        (bytes calldata repayTokenData, bytes calldata sponsorTokenData,) = parsePaymasterSignature(signature);
-
-        return keccak256(
-            abi.encode(
-                sender,
-                userOp.nonce,
-                keccak256(userOp.initCode),
-                keccak256(userOp.callData),
-                keccak256(abi.encode(repayTokenData, sponsorTokenData)),
-                bytes32(userOp.paymasterAndData[PAYMASTER_VALIDATION_GAS_OFFSET:PAYMASTER_DATA_OFFSET]),
-                userOp.preVerificationGas,
-                userOp.gasFees,
-                block.chainid,
-                address(this),
-                validUntil,
-                validAfter
-            )
-        );
+    function rageQuit() external onlyOwner {
+        tokensStore.rageQuit(owner());
+        emit LibTokens.RageQuitCompleted(owner());
     }
+
+    function addSupportedToken(address token) public onlyOwner {
+        tokensStore.addSupportedToken(token);
+        emit LibTokens.SupportedTokenAdded(token);
+    }
+
+    function removeSupportedToken(address token) public onlyOwner {
+        tokensStore.removeSupportedToken(token);
+        emit LibTokens.SupportedTokenRemoved(token);
+    }
+
+    // ================================================ ENTRYPOINT ZONE ====================================
 
     function _validatePaymasterUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash, uint256 requiredPreFund)
         internal
@@ -94,15 +85,10 @@ contract CABPaymaster is BasePaymaster, Initializable {
         (uint256 sponsorTokenLength, IPaymasterVerifier.SponsorToken[] memory sponsorTokens) =
             parseSponsorTokenData(sponsorTokenData);
 
-        // revoke the approval at the end of userOp
         for (uint256 i = 0; i < sponsorTokenLength; ++i) {
-            address token = sponsorTokens[i].token;
-            if (token == LibTokens.NATIVE_TOKEN) {
-                (bool success,) = payable(sponsorTokens[i].spender).call{value: sponsorTokens[i].amount}("");
-                require(success, "Native token transfer failed");
-            } else {
-                IERC20(sponsorTokens[i].token).approve(sponsorTokens[i].spender, sponsorTokens[i].amount);
-            }
+            // NOTE: front funds to the sender to pay for the intent
+            // for ERC20, allowance will be set back to zero after the userOp execution (see _postOp)
+            LibTokens.frontToken(sponsorTokens[i].token, sponsorTokens[i].spender, sponsorTokens[i].amount);
         }
 
         bytes32 invoiceId =
@@ -148,8 +134,45 @@ contract CABPaymaster is BasePaymaster, Initializable {
         }
     }
 
-    function parsePaymasterAndData(bytes calldata paymasterAndData)
+    // ================================================ VIEW POINT ====================================
+
+    function getHash(PackedUserOperation calldata userOp, uint48 validUntil, uint48 validAfter)
         public
+        view
+        returns (bytes32)
+    {
+        // can't use userOp.hash(), since it contains also the paymasterAndData itself.
+        address sender = userOp.getSender();
+        (,, bytes calldata signature) = parsePaymasterAndData(userOp.paymasterAndData);
+
+        (bytes calldata repayTokenData, bytes calldata sponsorTokenData,) = parsePaymasterSignature(signature);
+
+        return keccak256(
+            abi.encode(
+                sender,
+                userOp.nonce,
+                keccak256(userOp.initCode),
+                keccak256(userOp.callData),
+                keccak256(abi.encode(repayTokenData, sponsorTokenData)),
+                bytes32(userOp.paymasterAndData[PAYMASTER_VALIDATION_GAS_OFFSET:PAYMASTER_DATA_OFFSET]),
+                userOp.preVerificationGas,
+                userOp.gasFees,
+                block.chainid,
+                address(this),
+                validUntil,
+                validAfter
+            )
+        );
+    }
+
+    function getSupportedTokens() public view returns (address[] memory) {
+        return tokensStore.getSupportedTokens();
+    }
+
+    // ================================================ INTERNAL HELPERS =======================================
+
+    function parsePaymasterAndData(bytes calldata paymasterAndData)
+        internal
         pure
         returns (uint48 validUntil, uint48 validAfter, bytes calldata signature)
     {
@@ -159,7 +182,7 @@ contract CABPaymaster is BasePaymaster, Initializable {
     }
 
     function parsePaymasterSignature(bytes calldata signature)
-        public
+        internal
         pure
         returns (bytes calldata repayTokenData, bytes calldata sponsorTokenData, bytes calldata paymasterSignature)
     {
@@ -189,7 +212,7 @@ contract CABPaymaster is BasePaymaster, Initializable {
     }
 
     function parseSponsorTokenData(bytes calldata sponsorTokenData)
-        public
+        internal
         pure
         returns (uint8 sponsorTokenLength, IPaymasterVerifier.SponsorToken[] memory sponsorTokens)
     {
@@ -208,20 +231,6 @@ contract CABPaymaster is BasePaymaster, Initializable {
                 uint256(bytes32(sponsorTokenData[offset + 40:offset + 72]))
             );
         }
-    }
-
-    function addSupportedToken(address token) public onlyOwner {
-        tokensStore.addSupportedToken(token);
-        emit LibTokens.SupportedTokenAdded(token);
-    }
-
-    function removeSupportedToken(address token) public onlyOwner {
-        tokensStore.removeSupportedToken(token);
-        emit LibTokens.SupportedTokenRemoved(token);
-    }
-
-    function getSupportedTokens() public view returns (address[] memory) {
-        return tokensStore.getSupportedTokens();
     }
 
     receive() external payable {}
