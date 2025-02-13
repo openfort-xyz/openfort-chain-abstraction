@@ -12,12 +12,12 @@ const ReceiptQueryProofSchema = z.object({
   jsonrpc: z.literal("2.0"),
   id: z.number(),
   result: z.object({
-    jobID: jobIdSchema,
     status: z.enum(["complete", "error", "pending"]),
+    jobID: jobIdSchema,
     blockNumber: z.number().optional(),
     receiptIndex: z.number(),
-    srcChainId: z.number(),
-    dstChainId: z.number(),
+    logIndex: z.number(),
+    chainId: z.number(),
     createdAt: z.number(),
     updatedAt: z.number(),
     proof: z
@@ -29,6 +29,7 @@ const ReceiptQueryProofSchema = z.object({
       })
       .optional(),
   }),
+  failureReason: z.string().optional(),
 });
 
 type ReceiptProofResponse = {
@@ -36,11 +37,12 @@ type ReceiptProofResponse = {
   status: "complete" | "error" | "pending";
   blockNumber?: number;
   receiptIndex: number;
-  srcChainId: number;
-  dstChainId: number;
+  logIndex: number;
+  chainId: number;
   createdAt: number;
   updatedAt: number;
   proof?: string;
+  failureReason?: string;
 };
 
 class PolymerProverClient {
@@ -74,31 +76,31 @@ class PolymerProverClient {
     return schema.parse(rawData);
   }
 
-  async receiptRequestProof(
+  async requestEventProof(
     srcChainId: bigint,
-    dstChainId: bigint,
     srcBlockNumber: bigint,
     txIndex: bigint,
+    logIndex: bigint,
   ): Promise<number> {
     const response = await this.fetchWithValidation(ReceiptRequestProofSchema, {
       jsonrpc: "2.0",
       id: 1,
-      method: "receipt_requestProof",
+      method: "log_requestProof",
       params: [
         Number(srcChainId),
-        Number(dstChainId),
         Number(srcBlockNumber),
         Number(txIndex),
+        Number(logIndex),
       ],
     });
     return response.result;
   }
 
-  async queryReceiptProof(jobId: bigint): Promise<ReceiptProofResponse> {
+  async fetchEventProof(jobId: bigint): Promise<ReceiptProofResponse> {
     const response = await this.fetchWithValidation(ReceiptQueryProofSchema, {
       jsonrpc: "2.0",
       id: 1,
-      method: "receipt_queryProof",
+      method: "log_queryProof",
       params: [Number(jobId)],
     });
     return response.result;

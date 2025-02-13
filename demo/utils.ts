@@ -8,6 +8,8 @@ import {
   numberToHex,
   pad,
   toHex,
+  decodeFunctionData,
+  parseAbi,
 } from "viem";
 import { publicClients } from "./viemClients";
 import {
@@ -27,6 +29,24 @@ export async function getBlockTimestamp(chain: supportedChain) {
 export async function getBlockNumber(chain: supportedChain) {
   const block = await publicClients[chain].getBlockNumber();
   return block;
+}
+
+export function isAdminCall(callData: Hex) {
+  // Note: admin methods requires msg.sender to be the smart account addres and are sponsored with DemoAdminPaymaster
+  // InvoiceManager: registerPaymaster, revokePaymaster
+  const adminSelectors = ["0xa23f2985", "0x1b8003c7"];
+
+  try {
+    const decoded = decodeFunctionData({
+      data: callData,
+      abi: parseAbi(["function execute(address, uint256, bytes)"]),
+    });
+    const selector = decoded.args[2].slice(0, 10);
+    return adminSelectors.includes(selector);
+  } catch (error) {
+    // Note: executeBatch doesn't support admin calls
+    return false;
+  }
 }
 
 export function computeHash(
@@ -74,7 +94,7 @@ export function computeHash(
       userOp.preVerificationGas,
       pad(userOp.gasFees, { size: 32 }),
       BigInt(chainIDs[chain]),
-      getAddress(openfortContracts[chain].paymaster),
+      getAddress(openfortContracts[chain].cabPaymaster),
       Number(validUntil),
       Number(validAfter),
     ],
@@ -86,8 +106,8 @@ export function getRepayTokens(sender: Address) {
   // TODO: check sender locked-funds
   return concat([
     "0x01", // length of the array (only one repay token)
-    vaultA["optimism"] as Address,
-    pad(numberToHex(500), { size: 32 }),
+    vaultA["optimism"] as Address, // DEMO: only gets repaid on optimism
+    pad(numberToHex(500), { size: 32 }), // DEMO: fixed amount tokens are repaid
     pad(numberToHex(chainIDs["optimism"]), { size: 32 }),
   ]);
 }

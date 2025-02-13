@@ -9,66 +9,132 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {IInvoiceManager} from "../interfaces/IInvoiceManager.sol";
+import {LibTokens} from "./LibTokens.sol";
 import {IVault} from "../interfaces/IVault.sol";
 import {IPaymasterVerifier} from "../interfaces/IPaymasterVerifier.sol";
-import {ICrossL2Prover} from "@vibc-core-smart-contracts/contracts/interfaces/ICrossL2Prover.sol";
-import {LibBytes} from "@solady/utils/LibBytes.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /**
  * @title CABPaymaster
  * @dev A paymaster used in chain abstracted balance to sponsor the gas fee and tokens cross-chain.
  */
-contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
+contract CABPaymaster is BasePaymaster, Initializable {
     using SafeERC20 for IERC20;
     using UserOperationLib for PackedUserOperation;
+    using LibTokens for LibTokens.TokensStore;
 
+    LibTokens.TokensStore private tokensStore;
     IInvoiceManager public immutable invoiceManager;
-    ICrossL2Prover public immutable crossL2Prover;
-
     address public immutable verifyingSigner;
 
     uint256 private constant VALID_TIMESTAMP_OFFSET = PAYMASTER_DATA_OFFSET;
     uint256 private constant SIGNATURE_OFFSET = VALID_TIMESTAMP_OFFSET + 12;
 
-    address public constant NATIVE_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    address public constant ENTRY_POINT_V7 = 0x0000000071727De22E5E9d8BAf0edAc6f37da032;
 
-    constructor(
-        IEntryPoint _entryPoint,
-        IInvoiceManager _invoiceManager,
-        ICrossL2Prover _crossL2Prover,
-        address _verifyingSigner,
-        address _owner
-    ) BasePaymaster(_entryPoint, _owner) {
+    constructor(IInvoiceManager _invoiceManager, address _verifyingSigner, address _owner)
+        BasePaymaster(IEntryPoint(ENTRY_POINT_V7), _owner)
+    {
         invoiceManager = _invoiceManager;
-        crossL2Prover = _crossL2Prover;
         verifyingSigner = _verifyingSigner;
     }
 
-    /// @inheritdoc IPaymasterVerifier
-    function verifyInvoice(
-        bytes32 _invoiceId,
-        IInvoiceManager.InvoiceWithRepayTokens calldata _invoice,
-        bytes calldata _proof
-    ) external virtual override returns (bool) {
-        bytes32 invoiceId = invoiceManager.getInvoiceId(
-            _invoice.account,
-            _invoice.paymaster,
-            _invoice.nonce,
-            _invoice.sponsorChainId,
-            _encodeRepayToken(_invoice.repayTokenInfos)
+    function initialize(address[] memory _supportedTokens) public initializer {
+        for (uint256 i = 0; i < _supportedTokens.length; ++i) {
+            tokensStore.addSupportedToken(_supportedTokens[i]);
+        }
+    }
+
+    // ================================================ ADMIN ZONE =========================================
+
+    function withdraw(address token, uint256 amount) external onlyOwner {
+        // NOTE: tokenStore.NATIVE_TOKEN will withdraw native
+        LibTokens.transferToken(token, owner(), amount);
+    }
+
+    function rageQuit() external onlyOwner {
+        tokensStore.rageQuit(owner());
+        emit LibTokens.RageQuitCompleted(owner());
+    }
+
+    function addSupportedToken(address token) public onlyOwner {
+        tokensStore.addSupportedToken(token);
+        emit LibTokens.SupportedTokenAdded(token);
+    }
+
+    function removeSupportedToken(address token) public onlyOwner {
+        tokensStore.removeSupportedToken(token);
+        emit LibTokens.SupportedTokenRemoved(token);
+    }
+
+    // ================================================ ENTRYPOINT ZONE ====================================
+
+    function _validatePaymasterUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash, uint256 requiredPreFund)
+        internal
+        override
+        returns (bytes memory context, uint256 validationData)
+    {
+        (requiredPreFund);
+        address sender = userOp.getSender();
+        (uint48 validUntil, uint48 validAfter, bytes calldata signature) =
+            parsePaymasterAndData(userOp.paymasterAndData);
+
+        (bytes calldata repayTokenData, bytes calldata sponsorTokenData, bytes memory paymasterSignature) =
+            parsePaymasterSignature(signature);
+
+        (uint256 sponsorTokenLength, IPaymasterVerifier.SponsorToken[] memory sponsorTokens) =
+            parseSponsorTokenData(sponsorTokenData);
+
+        for (uint256 i = 0; i < sponsorTokenLength; ++i) {
+            // NOTE: front funds to the sender to pay for the intent
+            // for ERC20, allowance will be set back to zero after the userOp execution (see _postOp)
+            LibTokens.frontToken(sponsorTokens[i].token, sponsorTokens[i].spender, sponsorTokens[i].amount);
+        }
+
+        bytes32 invoiceId =
+            invoiceManager.getInvoiceId(sender, address(this), userOp.nonce, block.chainid, repayTokenData);
+
+        bytes32 hash = MessageHashUtils.toEthSignedMessageHash(getHash(userOp, validUntil, validAfter));
+
+        // don't revert on signature failure: return SIG_VALIDATION_FAILED
+        if (verifyingSigner != ECDSA.recover(hash, paymasterSignature)) {
+            return (
+                abi.encodePacked(invoiceId, sender, userOp.nonce, sponsorTokenData[0:1 + sponsorTokenLength * 72]),
+                _packValidationData(true, validUntil, validAfter)
+            );
+        }
+        return (
+            abi.encodePacked(invoiceId, sender, userOp.nonce, sponsorTokenData[0:1 + sponsorTokenLength * 72]),
+            _packValidationData(false, validUntil, validAfter)
         );
-
-        if (invoiceId != _invoiceId) return false;
-
-        (uint256 logIndex, bytes memory proof) = abi.decode(_proof, (uint256, bytes));
-        (,, bytes[] memory topics,) = crossL2Prover.validateEvent(logIndex, proof);
-
-        return (LibBytes.eqs(topics[0], IInvoiceManager.InvoiceCreated.selector) && LibBytes.eqs(topics[1], invoiceId));
     }
 
-    function withdraw(address token, uint256 amount) external override onlyOwner {
-        IERC20(token).safeTransfer(owner(), amount);
+    function _postOp(PostOpMode mode, bytes calldata context, uint256 actualGasCost, uint256 actualUserOpFeePerGas)
+        internal
+        virtual
+        override
+    {
+        bytes calldata sponsorTokenData = context[84:];
+
+        (uint8 sponsorTokenLength, IPaymasterVerifier.SponsorToken[] memory sponsorTokens) =
+            parseSponsorTokenData(sponsorTokenData);
+        for (uint8 i = 0; i < sponsorTokenLength; ++i) {
+            address token = sponsorTokens[i].token;
+            if (token != LibTokens.NATIVE_TOKEN) {
+                require(IERC20(token).approve(sponsorTokens[i].spender, 0), "CABPaymaster: Reset approval failed");
+            }
+        }
+        // TODO: Batch Proving Optimistation -> write in settlement contract on `opSucceeded`
+        if (mode == PostOpMode.opSucceeded) {
+            invoiceManager.createInvoice(
+                uint256(bytes32(context[52:84])), // nonce
+                address(bytes20(context[32:52])), // account
+                bytes32(context[:32]) // invoice id
+            );
+        }
     }
+
+    // ================================================ VIEW POINT ========================================
 
     function getHash(PackedUserOperation calldata userOp, uint48 validUntil, uint48 validAfter)
         public
@@ -99,103 +165,14 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         );
     }
 
-    function getInvoiceHash(IInvoiceManager.InvoiceWithRepayTokens calldata invoice) public pure returns (bytes32) {
-        return keccak256(
-            abi.encode(
-                invoice.account,
-                invoice.nonce,
-                invoice.paymaster,
-                invoice.sponsorChainId,
-                keccak256(abi.encode(invoice.repayTokenInfos))
-            )
-        );
+    function getSupportedTokens() public view returns (address[] memory) {
+        return tokensStore.getSupportedTokens();
     }
 
-    function _validatePaymasterUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash, uint256 requiredPreFund)
-        internal
-        override
-        returns (bytes memory context, uint256 validationData)
-    {
-        (requiredPreFund);
-        address sender = userOp.getSender();
-        (uint48 validUntil, uint48 validAfter, bytes calldata signature) =
-            parsePaymasterAndData(userOp.paymasterAndData);
-
-        (bytes calldata repayTokenData, bytes calldata sponsorTokenData, bytes memory paymasterSignature) =
-            parsePaymasterSignature(signature);
-
-        (uint256 sponsorTokenLength, SponsorToken[] memory sponsorTokens) = parseSponsorTokenData(sponsorTokenData);
-
-        // revoke the approval at the end of userOp
-        for (uint256 i = 0; i < sponsorTokenLength;) {
-            address token = sponsorTokens[i].token;
-            address spender = sponsorTokens[i].spender;
-            uint256 amount = sponsorTokens[i].amount;
-
-            if (token == NATIVE_TOKEN) {
-                (bool success,) = payable(spender).call{value: amount}("");
-                require(success, "Native token transfer failed");
-            } else {
-                require(IERC20(token).approve(spender, amount), "Approve failed");
-            }
-
-            unchecked {
-                i++;
-            }
-        }
-
-        bytes32 invoiceId =
-            invoiceManager.getInvoiceId(sender, address(this), userOp.nonce, block.chainid, repayTokenData);
-
-        bytes32 hash = MessageHashUtils.toEthSignedMessageHash(getHash(userOp, validUntil, validAfter));
-
-        // don't revert on signature failure: return SIG_VALIDATION_FAILED
-        if (verifyingSigner != ECDSA.recover(hash, paymasterSignature)) {
-            return (
-                abi.encodePacked(invoiceId, sender, userOp.nonce, sponsorTokenData[0:1 + sponsorTokenLength * 72]),
-                _packValidationData(true, validUntil, validAfter)
-            );
-        }
-
-        return (
-            abi.encodePacked(invoiceId, sender, userOp.nonce, sponsorTokenData[0:1 + sponsorTokenLength * 72]),
-            _packValidationData(false, validUntil, validAfter)
-        );
-    }
-
-    function _postOp(PostOpMode mode, bytes calldata context, uint256 actualGasCost, uint256 actualUserOpFeePerGas)
-        internal
-        virtual
-        override
-    {
-        bytes calldata sponsorTokenData = context[84:];
-
-        (uint8 sponsorTokenLength, SponsorToken[] memory sponsorTokens) = parseSponsorTokenData(sponsorTokenData);
-        for (uint8 i = 0; i < sponsorTokenLength;) {
-            address token = sponsorTokens[i].token;
-            address spender = sponsorTokens[i].spender;
-            if (token != NATIVE_TOKEN) {
-                require(IERC20(token).approve(spender, 0), "Reset approval failed");
-            }
-            unchecked {
-                i++;
-            }
-        }
-        // TODO: Batch Proving Optimistation -> write in settlement contract on `opSucceeded`
-        if (mode == PostOpMode.opSucceeded) {
-            //emit IInvoiceManager.InvoiceCreated(bytes32(context[:32]), address(bytes20(context[32:52])), address(this));
-
-            // This add ~= 100k gas compared to only emitting the InvoiceCreated event
-            // Question: is storing the invoices onchain truly necessary?
-            bytes32 invoiceId = bytes32(context[:32]);
-            address account = address(bytes20(context[32:52]));
-            uint256 nonce = uint256(bytes32(context[52:84]));
-            invoiceManager.createInvoice(nonce, account, invoiceId);
-        }
-    }
+    // ================================================ INTERNAL HELPERS =======================================
 
     function parsePaymasterAndData(bytes calldata paymasterAndData)
-        public
+        internal
         pure
         returns (uint48 validUntil, uint48 validAfter, bytes calldata signature)
     {
@@ -205,7 +182,7 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
     }
 
     function parsePaymasterSignature(bytes calldata signature)
-        public
+        internal
         pure
         returns (bytes calldata repayTokenData, bytes calldata sponsorTokenData, bytes calldata paymasterSignature)
     {
@@ -235,9 +212,9 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
     }
 
     function parseSponsorTokenData(bytes calldata sponsorTokenData)
-        public
+        internal
         pure
-        returns (uint8 sponsorTokenLength, SponsorToken[] memory sponsorTokens)
+        returns (uint8 sponsorTokenLength, IPaymasterVerifier.SponsorToken[] memory sponsorTokens)
     {
         sponsorTokenLength = uint8(bytes1(sponsorTokenData[0]));
 
@@ -245,34 +222,16 @@ contract CABPaymaster is IPaymasterVerifier, BasePaymaster {
         // length * 72 bytes: (20 bytes: token adddress + 20 bytes: spender address + 32 bytes: amount)
         require(sponsorTokenData.length == 1 + sponsorTokenLength * 72, "CABPaymaster: invalid sponsorTokenData length");
 
-        sponsorTokens = new SponsorToken[](sponsorTokenLength);
-        for (uint256 i = 0; i < uint256(sponsorTokenLength);) {
+        sponsorTokens = new IPaymasterVerifier.SponsorToken[](sponsorTokenLength);
+        for (uint256 i = 0; i < uint256(sponsorTokenLength); ++i) {
             uint256 offset = 1 + i * 72;
-            address token = address(bytes20(sponsorTokenData[offset:offset + 20]));
-            address spender = address(bytes20(sponsorTokenData[offset + 20:offset + 40]));
-            uint256 amount = uint256(bytes32(sponsorTokenData[offset + 40:offset + 72]));
-
-            sponsorTokens[i] = SponsorToken(token, spender, amount);
-
-            unchecked {
-                i++;
-            }
-        }
-    }
-
-    function _encodeRepayToken(IInvoiceManager.RepayTokenInfo[] memory repayTokens)
-        internal
-        pure
-        returns (bytes memory encodedRepayToken)
-    {
-        for (uint8 i = 0; i < repayTokens.length; i++) {
-            encodedRepayToken = bytes.concat(
-                encodedRepayToken,
-                bytes20(address(repayTokens[i].vault)),
-                bytes32(repayTokens[i].amount),
-                bytes32(repayTokens[i].chainId)
+            sponsorTokens[i] = IPaymasterVerifier.SponsorToken(
+                address(bytes20(sponsorTokenData[offset:offset + 20])),
+                address(bytes20(sponsorTokenData[offset + 20:offset + 40])),
+                uint256(bytes32(sponsorTokenData[offset + 40:offset + 72]))
             );
         }
-        return abi.encodePacked(uint8(repayTokens.length), encodedRepayToken);
     }
+
+    receive() external payable {}
 }

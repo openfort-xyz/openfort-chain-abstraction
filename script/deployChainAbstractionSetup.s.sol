@@ -2,31 +2,30 @@
 pragma solidity ^0.8.0;
 
 import {Script, console} from "forge-std/Script.sol";
-import {IEntryPoint} from "account-abstraction/core/EntryPoint.sol";
 import {IInvoiceManager} from "../src/interfaces/IInvoiceManager.sol";
 import {IVaultManager} from "../src/interfaces/IVaultManager.sol";
+
+import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 import {CheckOrDeployEntryPoint} from "./auxiliary/checkOrDeployEntrypoint.sol";
+import {DeployPolymerPaymasterVerifier} from "./deployPolymerPaymasterVerifier.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {UpgradeableOpenfortProxy} from "../src/proxy/UpgradeableOpenfortProxy.sol";
 import {BaseVault} from "../src/vaults/BaseVault.sol";
 import {VaultManager} from "../src/vaults/VaultManager.sol";
 import {CABPaymaster} from "../src/paymasters/CABPaymaster.sol";
+import {CABPaymasterFactory} from "../src/paymasters/CABPaymasterFactory.sol";
 import {InvoiceManager} from "../src/core/InvoiceManager.sol";
-
-import {ICrossL2Prover} from "@vibc-core-smart-contracts/contracts/interfaces/ICrossL2Prover.sol";
 
 // forge script script/deployChainAbstractionSetup.s.sol:DeployChainAbstractionSetup "[0xusdc, 0xusdt]" --sig "run(address[])" --via-ir --rpc-url=127.0.0.1:854
 
-contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint {
+contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint, DeployPolymerPaymasterVerifier {
     uint256 internal deployerPrivKey = vm.envUint("PK_DEPLOYER");
     uint256 internal withdrawLockBlock = vm.envUint("WITHDRAW_LOCK_BLOCK");
     address internal deployer = vm.addr(deployerPrivKey);
     address internal owner = vm.envAddress("OWNER");
+    address internal paymasterFactoryOwner = vm.envAddress("PAYMASTER_FACTORY_OWNER");
     address internal verifyingSigner = vm.envAddress("VERIFYING_SIGNER");
     bytes32 internal versionSalt = vm.envBytes32("VERSION_SALT");
-
-    // Note: crossL2Prover is deployed by Polymer at the same address on all supported chains
-    address internal crossL2Prover = 0xb8AcB3FE3117A67b665Bc787c977623612f8a461;
 
     function run(address[] calldata tokens) public {
         if (tokens.length == 0) {
@@ -39,7 +38,7 @@ contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint {
 
         vm.startBroadcast(deployerPrivKey);
 
-        InvoiceManager invoiceManagerImpl = new InvoiceManager();
+        InvoiceManager invoiceManagerImpl = new InvoiceManager{salt: versionSalt}();
         console.log("InvoiceManagerImpl Address", address(invoiceManagerImpl));
 
         InvoiceManager invoiceManager =
@@ -70,7 +69,8 @@ contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint {
             BaseVault vault = BaseVault(
                 payable(
                     new UpgradeableOpenfortProxy{salt: versionSalt}(
-                        address(new BaseVault()),
+                        // Note: avoid create2 collision by using a different salt for each vault
+                        address(new BaseVault{salt: versionSalt << i}()),
                         abi.encodeWithSelector(
                             BaseVault.initialize.selector, IVaultManager(address(vaultManager)), IERC20(token)
                         )
@@ -83,11 +83,13 @@ contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint {
 
         IEntryPoint entryPoint = checkOrDeployEntryPoint();
 
-        CABPaymaster paymaster = new CABPaymaster{salt: versionSalt}(
-            entryPoint, IInvoiceManager(address(invoiceManager)), ICrossL2Prover(crossL2Prover), verifyingSigner, owner
-        );
+        CABPaymasterFactory paymasterFactory =
+            new CABPaymasterFactory{salt: versionSalt}(paymasterFactoryOwner, address(invoiceManager), verifyingSigner);
+
+        address paymaster = paymasterFactory.createCABPaymaster(owner, versionSalt, tokens);
 
         console.log("Paymaster Address", address(paymaster));
+        deployPaymasterVerifier(address(invoiceManager), owner, versionSalt);
         vm.stopBroadcast();
     }
 }

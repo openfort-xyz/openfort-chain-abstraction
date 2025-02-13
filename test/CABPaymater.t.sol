@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Test, console} from "forge-std/Test.sol";
-import {EntryPoint} from "account-abstraction/core/EntryPoint.sol";
+import {Test} from "forge-std/Test.sol";
 import {PackedUserOperation} from "account-abstraction/core/UserOperationLib.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {CABPaymaster} from "../src/paymasters/CABPaymaster.sol";
@@ -17,34 +16,33 @@ import {UpgradeableOpenfortProxy} from "../src/proxy/UpgradeableOpenfortProxy.so
 import {MockERC20} from "../src/mocks/MockERC20.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {IPaymasterVerifier} from "../src/interfaces/IPaymasterVerifier.sol";
-import {UserOpSettlement} from "../src/settlement/UserOpSettlement.sol";
 import {IPaymaster} from "account-abstraction/interfaces/IPaymaster.sol";
 import {ICrossL2Prover} from "@vibc-core-smart-contracts/contracts/interfaces/ICrossL2Prover.sol";
 import {MockCrossL2Prover} from "../src/mocks/MockCrossL2Prover.sol";
+import {PolymerPaymasterVerifier} from "../src/paymasters/PolymerPaymasterVerifier.sol";
 
 contract CABPaymasterTest is Test {
     uint256 immutable BASE_SEPOLIA_CHAIN_ID = 84532;
     uint256 immutable OPTIMISM_CHAIN_ID = 11155420;
-    uint256 immutable PAYMSTER_BASE_MOCK_ERC20_BALANCE = 100000;
+    uint256 immutable PAYMASTER_BASE_MOCK_ERC20_BALANCE = 100000;
 
     CABPaymaster public paymaster;
     InvoiceManager public invoiceManager;
     VaultManager public vaultManager;
     ICrossL2Prover public crossL2Prover;
+    PolymerPaymasterVerifier public polymerPaymasterVerifier;
     BaseVault public openfortVault;
     MockERC20 public mockERC20;
-
-    EntryPoint public entryPoint;
-
-    UserOpSettlement public settlement;
 
     address public verifyingSignerAddress;
     uint256 public verifyingSignerPrivateKey;
     address public owner;
     address public rekt;
 
+    address public constant NATIVE_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    address public constant ENTRY_POINT_V7 = 0x0000000071727De22E5E9d8BAf0edAc6f37da032;
+
     function setUp() public {
-        entryPoint = new EntryPoint();
         owner = address(1);
 
         rekt = address(0x9590Ed0C18190a310f4e93CAccc4CC17270bED40);
@@ -66,7 +64,6 @@ contract CABPaymasterTest is Test {
             )
         );
         mockERC20 = new MockERC20();
-        console.log("mockERC20", address(mockERC20));
         openfortVault = BaseVault(
             payable(
                 new UpgradeableOpenfortProxy(
@@ -77,26 +74,36 @@ contract CABPaymasterTest is Test {
                 )
             )
         );
-        invoiceManager.initialize(owner, IVaultManager(address(vaultManager)));
-        settlement = UserOpSettlement(payable(new UpgradeableOpenfortProxy(address(new UserOpSettlement()), "")));
-        paymaster = new CABPaymaster(entryPoint, invoiceManager, crossL2Prover, verifyingSignerAddress, owner);
-        settlement.initialize(owner, address(paymaster));
 
-        mockERC20.mint(address(paymaster), PAYMSTER_BASE_MOCK_ERC20_BALANCE);
+        invoiceManager.initialize(owner, IVaultManager(address(vaultManager)));
+
+        polymerPaymasterVerifier = new PolymerPaymasterVerifier(
+            IInvoiceManager(address(invoiceManager)), ICrossL2Prover(address(crossL2Prover)), owner
+        );
+
+        // Initialize the supportedTokens array
+        address[] memory supportedTokens = new address[](2);
+        supportedTokens[0] = address(mockERC20);
+        supportedTokens[1] = NATIVE_TOKEN;
+
+        paymaster = new CABPaymaster(invoiceManager, verifyingSignerAddress, owner);
+        paymaster.initialize(supportedTokens);
+
+        mockERC20.mint(address(paymaster), PAYMASTER_BASE_MOCK_ERC20_BALANCE);
 
         assertEq(address(invoiceManager.vaultManager()), address(vaultManager));
         assertEq(address(vaultManager.invoiceManager()), address(invoiceManager));
 
         vm.startPrank(rekt);
         invoiceManager.registerPaymaster(
-            address(paymaster), IPaymasterVerifier(address(paymaster)), block.timestamp + 100000
+            address(paymaster), IPaymasterVerifier(address(polymerPaymasterVerifier)), block.timestamp + 100000
         );
     }
 
-    function getEncodedSponsorTokens(uint8 len) internal returns (bytes memory encodedSponsorToken) {
+    function getEncodedSponsorTokens(uint8 len, address token) internal returns (bytes memory encodedSponsorToken) {
         IPaymasterVerifier.SponsorToken[] memory sponsorTokens = new IPaymasterVerifier.SponsorToken[](len);
         for (uint8 i = 0; i < len; i++) {
-            sponsorTokens[i] = IPaymasterVerifier.SponsorToken({token: address(mockERC20), spender: rekt, amount: 500});
+            sponsorTokens[i] = IPaymasterVerifier.SponsorToken({token: token, spender: rekt, amount: 500});
             encodedSponsorToken = bytes.concat(
                 encodedSponsorToken,
                 bytes20(sponsorTokens[i].token),
@@ -152,9 +159,9 @@ contract CABPaymasterTest is Test {
         );
     }
 
-    function testValidateUserOp() public {
+    function testValidateUserOpWithERC20SponsorToken() public {
         vm.chainId(BASE_SEPOLIA_CHAIN_ID);
-        bytes memory sponsorTokensBytes = getEncodedSponsorTokens(1);
+        bytes memory sponsorTokensBytes = getEncodedSponsorTokens(1, address(mockERC20));
         bytes memory repayTokensBytes = getEncodedRepayTokens(1);
 
         uint48 validUntil = 1732810044 + 1000;
@@ -209,7 +216,7 @@ contract CABPaymasterTest is Test {
 
         userOp.paymasterAndData = bytes.concat(userOp.paymasterAndData, signature);
 
-        vm.startPrank(address(entryPoint));
+        vm.startPrank(ENTRY_POINT_V7);
         (bytes memory context, uint256 validationData) =
             paymaster.validatePaymasterUserOp(userOp, userOpHash, type(uint256).max);
 
@@ -231,6 +238,84 @@ contract CABPaymasterTest is Test {
 
         uint256 allowanceAfterExecution = mockERC20.allowance(address(paymaster), userOp.sender);
         assertEq(allowanceAfterExecution, 0);
+    }
+
+    function testValidateUserOpWithNativeSponsorToken() public {
+        vm.chainId(BASE_SEPOLIA_CHAIN_ID);
+        bytes memory sponsorTokensBytes = getEncodedSponsorTokens(1, NATIVE_TOKEN);
+        bytes memory repayTokensBytes = getEncodedRepayTokens(1);
+
+        uint48 validUntil = 1732810044 + 1000;
+        uint48 validAfter = 1732810044;
+        uint128 preVerificationGas = 1e5;
+        uint128 postVerificationGas = 1e5;
+
+        bytes memory paymasterAndData = bytes.concat(
+            bytes20(address(paymaster)),
+            bytes16(preVerificationGas),
+            bytes16(postVerificationGas),
+            bytes6(validUntil),
+            bytes6(validAfter),
+            repayTokensBytes,
+            sponsorTokensBytes
+        );
+
+        PackedUserOperation memory userOp = PackedUserOperation({
+            sender: rekt,
+            nonce: 31994562304018791559173496635392,
+            initCode: "",
+            callData: "",
+            accountGasLimits: bytes32(uint256(1e18)),
+            preVerificationGas: preVerificationGas,
+            gasFees: bytes32(uint256(1e4)),
+            paymasterAndData: paymasterAndData,
+            signature: ""
+        });
+
+        bytes32 userOpHash = keccak256(
+            abi.encode(
+                userOp.sender,
+                userOp.nonce,
+                keccak256(userOp.initCode),
+                keccak256(userOp.callData),
+                userOp.accountGasLimits,
+                keccak256(abi.encode(repayTokensBytes, sponsorTokensBytes)),
+                bytes32(abi.encodePacked(preVerificationGas, postVerificationGas)),
+                userOp.preVerificationGas,
+                userOp.gasFees,
+                block.chainid,
+                address(paymaster),
+                validUntil,
+                validAfter
+            )
+        );
+
+        (uint8 v, bytes32 r, bytes32 s) =
+            vm.sign(verifyingSignerPrivateKey, MessageHashUtils.toEthSignedMessageHash(userOpHash));
+        // Append signature to paymasterAndData
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        userOp.paymasterAndData = bytes.concat(userOp.paymasterAndData, signature);
+
+        vm.startPrank(ENTRY_POINT_V7);
+        vm.deal(address(paymaster), 1 ether);
+        (bytes memory context, uint256 validationData) =
+            paymaster.validatePaymasterUserOp(userOp, userOpHash, type(uint256).max);
+
+        assertEq(address(userOp.sender).balance, 500);
+
+        // validate postOp
+        // This is the event that we must track on dest chain and prove on source chain with Polymer proof system
+
+        // Calculate the expected invoiceId
+        bytes32 expectedInvoiceId =
+            invoiceManager.getInvoiceId(rekt, address(paymaster), userOp.nonce, BASE_SEPOLIA_CHAIN_ID, repayTokensBytes);
+
+        // don't know why comparison of paymaster address fails
+        // even though it's the same address
+        vm.expectEmit(true, true, true, false);
+        emit IInvoiceManager.InvoiceCreated(expectedInvoiceId, rekt, address(paymaster));
+        paymaster.postOp(IPaymaster.PostOpMode.opSucceeded, context, 1222, 42);
     }
 
     function testGetInvoiceId() public {
@@ -269,8 +354,22 @@ contract CABPaymasterTest is Test {
             sponsorChainId: 84532,
             repayTokenInfos: repayTokens
         });
+        assert(polymerPaymasterVerifier.verifyInvoice(invoiceId, invoice, proof));
+    }
 
-        console.logBytes(abi.encode(invoice));
-        assert(paymaster.verifyInvoice(invoiceId, invoice, proof));
+    function testCABPaymasterRagequit() public {
+        vm.deal(address(paymaster), 1 ether);
+
+        assertEq(mockERC20.balanceOf(address(paymaster)), PAYMASTER_BASE_MOCK_ERC20_BALANCE);
+        assertEq(address(paymaster).balance, 1 ether);
+
+        vm.startPrank(owner);
+        paymaster.rageQuit();
+
+        assertEq(mockERC20.balanceOf(address(paymaster)), 0);
+        assertEq(address(paymaster).balance, 0);
+
+        assertEq(mockERC20.balanceOf(owner), PAYMASTER_BASE_MOCK_ERC20_BALANCE);
+        assertEq(owner.balance, 1 ether);
     }
 }

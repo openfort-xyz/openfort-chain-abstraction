@@ -9,30 +9,60 @@ import { BundlerClient, createBundlerClient } from "viem/account-abstraction";
 import { baseSepolia, optimismSepolia } from "viem/chains";
 import { ownerAccount, supportedChain } from "./constants";
 import { getPaymasterActions } from "./paymaster";
+import { mantleSepoliaTestnet } from "viem/chains";
 
-export const optimismPublicClient = createPublicClient({
+// ============================= PUBLIC CLIENTS =============================
+
+const mantleSepoliaPublicClient = createPublicClient({
+  chain: mantleSepoliaTestnet,
+  transport: http(),
+});
+
+const optimismPublicClient = createPublicClient({
   chain: optimismSepolia,
   transport: http(),
 });
 
-export const baseSepoliaPublicClient = createPublicClient({
+const baseSepoliaPublicClient = createPublicClient({
   chain: baseSepolia,
   transport: http(),
 });
 
-export const baseSepoliaWalletClient = createWalletClient({
+export const publicClients: Record<supportedChain, PublicClient> = {
+  optimism: optimismPublicClient as PublicClient,
+  base: baseSepoliaPublicClient as PublicClient,
+  mantle: mantleSepoliaPublicClient as PublicClient,
+};
+
+// ============================= WALLET CLIENTS =============================
+
+const optimismWalletClient = createWalletClient({
+  account: ownerAccount,
+  chain: optimismSepolia,
+  transport: http(),
+});
+
+const baseSepoliaWalletClient = createWalletClient({
   account: ownerAccount,
   chain: baseSepolia,
   transport: http(),
 });
 
-export const optimismWalletClient = createWalletClient({
+const mantleSepoliaWalletClient = createWalletClient({
   account: ownerAccount,
-  chain: optimismSepolia,
+  chain: mantleSepoliaTestnet,
   transport: http(),
 });
 
-export const baseSepoliaBundlerClient = createBundlerClient({
+export const walletClients: Record<supportedChain, WalletClient> = {
+  optimism: optimismWalletClient,
+  base: baseSepoliaWalletClient,
+  mantle: mantleSepoliaWalletClient,
+};
+
+// ============================= BUNDLER CLIENTS =============================
+
+const baseSepoliaBundlerClient = createBundlerClient({
   client: baseSepoliaPublicClient,
   paymaster: getPaymasterActions("base"),
   transport: http(
@@ -40,7 +70,7 @@ export const baseSepoliaBundlerClient = createBundlerClient({
   ),
 });
 
-export const optimismBundlerClient = createBundlerClient({
+const optimismBundlerClient = createBundlerClient({
   client: optimismPublicClient,
   paymaster: getPaymasterActions("optimism"),
   transport: http(
@@ -48,17 +78,18 @@ export const optimismBundlerClient = createBundlerClient({
   ),
 });
 
-export const walletClients: Record<supportedChain, WalletClient> = {
-  optimism: optimismWalletClient,
-  base: baseSepoliaWalletClient,
-};
-
-export const publicClients: Record<supportedChain, PublicClient> = {
-  optimism: optimismPublicClient as PublicClient,
-  base: baseSepoliaPublicClient as PublicClient,
-};
+// NOTE: running local bundler for mantle sepolia demo because pimlico doesn't support it yet
+const mantleSepoliaBundlerClient = createBundlerClient({
+  client: mantleSepoliaPublicClient,
+  paymaster: getPaymasterActions("mantle"),
+  //transport: http("http://127.0.0.1:4337"),
+  transport: http(
+    `https://api.pimlico.io/v2/mantle-sepolia/rpc?apikey=${process.env.PIMLICO_API_KEY}`,
+  ),
+});
 
 export const bundlerClients: Record<supportedChain, BundlerClient> = {
   optimism: optimismBundlerClient as BundlerClient,
   base: baseSepoliaBundlerClient as BundlerClient,
+  mantle: mantleSepoliaBundlerClient as BundlerClient,
 };

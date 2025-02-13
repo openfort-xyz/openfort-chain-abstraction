@@ -26,9 +26,4 @@ interface IPaymasterVerifier {
         IInvoiceManager.InvoiceWithRepayTokens calldata invoice,
         bytes calldata proof
     ) external returns (bool);
-
-    /**
-     * @notice Withdraw the token.
-     */
-    function withdraw(address token, uint256 amount) external;
 }

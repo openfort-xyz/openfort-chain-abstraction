@@ -25,16 +25,21 @@ import {
   getBlockTimestamp,
   getRepayTokens,
   getSponsorTokens,
+  isAdminCall,
 } from "./utils";
 
 export function getPaymasterActions(chain: supportedChain): PaymasterActions {
-  const pmAddress = openfortContracts[chain].paymaster;
   return {
     getPaymasterData: async (
       parameters: GetPaymasterDataParameters,
     ): Promise<GetPaymasterDataReturnType> => {
-      const validAfter = await getBlockTimestamp(chain);
-      const validUntil = validAfter + 1_000_000n;
+      const isAdminCallCache = isAdminCall(parameters.callData);
+      const pmAddress = isAdminCallCache
+        ? openfortContracts[chain].adminPaymaster
+        : openfortContracts[chain].cabPaymaster;
+      const currentBlockTimestamp = await getBlockTimestamp(chain);
+      const validAfter = currentBlockTimestamp - 1_000_000n;
+      const validUntil = currentBlockTimestamp + 1_000_000n;
 
       const postVerificationGas =
         parameters.paymasterPostOpGasLimit || BigInt(1e5);
@@ -74,13 +79,15 @@ export function getPaymasterActions(chain: supportedChain): PaymasterActions {
 
       return {
         paymaster: getAddress(pmAddress),
-        paymasterData: concat([
-          numberToHex(validUntil, { size: 6 }),
-          numberToHex(validAfter, { size: 6 }),
-          getRepayTokens(userOp.sender),
-          getSponsorTokens(userOp.sender, chain),
-          signature,
-        ]) as Hex,
+        paymasterData: isAdminCallCache
+          ? "0x"
+          : (concat([
+              numberToHex(validUntil, { size: 6 }),
+              numberToHex(validAfter, { size: 6 }),
+              getRepayTokens(userOp.sender),
+              getSponsorTokens(userOp.sender, chain),
+              signature,
+            ]) as Hex),
         paymasterVerificationGasLimit: verificationGasLimit,
         paymasterPostOpGasLimit: postVerificationGas,
       };
@@ -88,10 +95,17 @@ export function getPaymasterActions(chain: supportedChain): PaymasterActions {
     getPaymasterStubData: async (
       parameters: GetPaymasterStubDataParameters,
     ): Promise<GetPaymasterStubDataReturnType> => {
+      const pmAddress = isAdminCall(parameters.callData)
+        ? openfortContracts[chain].adminPaymaster
+        : openfortContracts[chain].cabPaymaster;
+
       return {
-        paymasterAndData: (
+        paymaster: getAddress(pmAddress),
+        paymasterData: (
           await getPaymasterActions(chain).getPaymasterData(parameters)
-        ).paymasterAndData as Hex,
+        ).paymasterData as Hex,
+        paymasterPostOpGasLimit: BigInt(1e6),
+        paymasterVerificationGasLimit: BigInt(1e6),
       };
     },
   };
