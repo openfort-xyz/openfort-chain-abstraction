@@ -46,7 +46,7 @@ The Paymaster contract will then be reimbursed on the source chain(s). Ni1o: use
 
 ### Trust assumptions
 
-* The system relies on cross-L2 execution proofs enabled by [Polymer](https://www.polymerlabs.org/), eliminating the need for Users to trust Openfort or the Ecosystem. To recover funds locked in source chain vaults on behalf of the ecosystem, Openfort must prove the execution of the userOp on the remote chain. There is no refund on source chain without the corresponding remote chain execution proof. The InvoiceManager track invoices onchain to prevent double-refund.
+* The system relies on cross-L2 execution proofs enabled by [Polymer](https://docs.polymerlabs.org/docs/build/examples/chain_abstraction/), eliminating the need for Users to trust Openfort or the Ecosystem. To recover funds locked in source chain vaults on behalf of the ecosystem, Openfort must prove the execution of the userOp on the remote chain. There is no refund on source chain without the corresponding remote chain execution proof. The InvoiceManager track invoices onchain to prevent double-refund.
 * Openfort does not have custody of funds in the Ecosystem Paymaster because the userOp is co-signed within a secure enclave, following predefined policies set by the ecosystem.
 
 
