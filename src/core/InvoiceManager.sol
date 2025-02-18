@@ -36,8 +36,15 @@ import {IVaultManager} from "../interfaces/IVaultManager.sol";
 contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgradeable, IInvoiceManager {
     IVaultManager public vaultManager;
 
-    /// @notice Mapping: invoiceId => Invoice to store the invoice.
-    mapping(bytes32 => Invoice) public invoices;
+    /// @notice Settlememt storage location used as the base for the invoices mapping following EIP-7201.
+    // keccak256(abi.encode(uint256(keccak256(bytes("Dialy"))) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant SETTLEMENT_STORAGE_LOCATION = 0x1574f0d0c24265911bc4961cda61aadd6e06faacad4bf42a2f89fb53fed1c800;
+
+    /// @notice Struct: group invoices under the same storage key to ease remote state proving. (eth_getProof)
+    struct SettlementStorage {
+        /// @notice Mapping: invoiceId => Invoice to store the invoice.
+        mapping(bytes32 => Invoice) invoices;
+    }
 
     /// @notice Mapping: invoiceId => bool to store the invoice repayment status.
     mapping(bytes32 => bool) public isInvoiceRepaid;
@@ -86,10 +93,11 @@ contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardU
 
     /// @inheritdoc IInvoiceManager
     function createInvoice(uint256 nonce, address account, bytes32 invoiceId) external override onlyPaymaster(account) {
+        SettlementStorage storage $ = _getSettlementStorage();
         // check if the invoice already exists
-        require(invoices[invoiceId].account == address(0), "InvoiceManager: invoice already exists");
+        require($.invoices[invoiceId].account == address(0), "InvoiceManager: invoice already exists");
         // store the invoice
-        invoices[invoiceId] = Invoice(account, nonce, msg.sender, block.chainid);
+        $.invoices[invoiceId] = Invoice(account, nonce, msg.sender, block.chainid);
 
         emit InvoiceCreated(invoiceId, account, msg.sender);
     }
@@ -136,7 +144,8 @@ contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardU
 
     /// @inheritdoc IInvoiceManager
     function getInvoice(bytes32 invoiceId) external view returns (Invoice memory) {
-        return invoices[invoiceId];
+        SettlementStorage storage $ = _getSettlementStorage();
+        return $.invoices[invoiceId];
     }
 
     /// @inheritdoc IInvoiceManager
@@ -167,5 +176,11 @@ contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardU
             mstore(amounts, count)
         }
         return (vaults, amounts);
+    }
+
+    function _getSettlementStorage() private pure returns (SettlementStorage storage $) {
+        assembly {
+            $.slot := SETTLEMENT_STORAGE_LOCATION
+        }
     }
 }
