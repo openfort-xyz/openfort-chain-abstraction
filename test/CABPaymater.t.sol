@@ -19,7 +19,7 @@ import {IPaymasterVerifier} from "../src/interfaces/IPaymasterVerifier.sol";
 import {IPaymaster} from "account-abstraction/interfaces/IPaymaster.sol";
 import {ICrossL2Prover} from "@vibc-core-smart-contracts/contracts/interfaces/ICrossL2Prover.sol";
 import {MockCrossL2Prover} from "../src/mocks/MockCrossL2Prover.sol";
-import {PolymerPaymasterVerifier} from "../src/paymasters/PolymerPaymasterVerifier.sol";
+import {PolymerPaymasterVerifierV1} from "../src/paymasters/PolymerPaymasterVerifierV1.sol";
 
 contract CABPaymasterTest is Test {
     uint256 immutable BASE_SEPOLIA_CHAIN_ID = 84532;
@@ -30,7 +30,7 @@ contract CABPaymasterTest is Test {
     InvoiceManager public invoiceManager;
     VaultManager public vaultManager;
     ICrossL2Prover public crossL2Prover;
-    PolymerPaymasterVerifier public polymerPaymasterVerifier;
+    PolymerPaymasterVerifierV1 public polymerPaymasterVerifier;
     BaseVault public openfortVault;
     MockERC20 public mockERC20;
 
@@ -77,7 +77,7 @@ contract CABPaymasterTest is Test {
 
         invoiceManager.initialize(owner, IVaultManager(address(vaultManager)));
 
-        polymerPaymasterVerifier = new PolymerPaymasterVerifier(
+        polymerPaymasterVerifier = new PolymerPaymasterVerifierV1(
             IInvoiceManager(address(invoiceManager)), ICrossL2Prover(address(crossL2Prover)), owner
         );
 
