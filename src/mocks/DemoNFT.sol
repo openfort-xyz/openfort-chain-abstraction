@@ -1,11 +1,12 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.20;
 
-import {ERC721URIStorage} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
-import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import {ERC721URIStorage} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 /// @title DemoNFT
@@ -93,12 +94,7 @@ contract DemoNFT is Ownable, AccessControl, ERC721URIStorage {
     /// Interface functions
     ////////////////////////////////////////////////////////////////////////
 
-    function supportsInterface(bytes4 interfaceId)
-        public
-        view
-        override(ERC721URIStorage, AccessControl)
-        returns (bool)
-    {
+    function supportsInterface(bytes4 interfaceId) public view override(ERC721URIStorage, AccessControl) returns (bool) {
         return ERC721URIStorage.supportsInterface(interfaceId) || AccessControl.supportsInterface(interfaceId);
     }
 }

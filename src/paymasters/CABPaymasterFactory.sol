@@ -1,8 +1,8 @@
-import "account-abstraction/core/BasePaymaster.sol";
-import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
+import {IInvoiceManager} from "../interfaces/IInvoiceManager.sol";
 import {CABPaymaster} from "./CABPaymaster.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {IInvoiceManager} from "../interfaces/IInvoiceManager.sol";
+import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
+import "account-abstraction/core/BasePaymaster.sol";
 
 contract CABPaymasterFactory is Ownable {
     address public invoiceManager;
@@ -45,9 +45,7 @@ contract CABPaymasterFactory is Ownable {
         bytes32 salt = keccak256(abi.encode(_owner, _nonce));
         return Create2.computeAddress(
             salt,
-            keccak256(
-                abi.encodePacked(type(CABPaymaster).creationCode, abi.encode(invoiceManager, verifyingSigner, _owner))
-            )
+            keccak256(abi.encodePacked(type(CABPaymaster).creationCode, abi.encode(invoiceManager, verifyingSigner, _owner)))
         );
     }
 

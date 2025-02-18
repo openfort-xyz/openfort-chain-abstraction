@@ -4,11 +4,7 @@ pragma solidity ^0.8.0;
 import {IInvoiceManager} from "../interfaces/IInvoiceManager.sol";
 
 library LibEncoders {
-    function encode(IInvoiceManager.RepayTokenInfo[] memory repayTokens)
-        internal
-        pure
-        returns (bytes memory encodedRepayToken)
-    {
+    function encode(IInvoiceManager.RepayTokenInfo[] memory repayTokens) internal pure returns (bytes memory encodedRepayToken) {
         for (uint8 i = 0; i < repayTokens.length; i++) {
             encodedRepayToken = bytes.concat(
                 encodedRepayToken,

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IVault} from "./IVault.sol";
 import {IYieldVault} from "./IYieldVault.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title Interface for the VaultManager contract.
@@ -112,12 +112,8 @@ interface IVaultManager {
      * @param amounts The amounts of underlying tokens to repay.
      * @param receiver The address to send the repaid tokens to.
      */
-    function withdrawSponsorToken(
-        address account,
-        IVault[] calldata vaults,
-        uint256[] calldata amounts,
-        address receiver
-    ) external;
+    function withdrawSponsorToken(address account, IVault[] calldata vaults, uint256[] calldata amounts, address receiver)
+        external;
 
     /**
      * @notice Returns the amount of shares for the account in the specified vault.

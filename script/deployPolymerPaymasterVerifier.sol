@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Script, console} from "forge-std/Script.sol";
-import {PolymerPaymasterVerifierV2} from "../src/paymasters/PolymerPaymasterVerifierV2.sol";
-import {PolymerPaymasterVerifierV1} from "../src/paymasters/PolymerPaymasterVerifierV1.sol";
-import {ICrossL2Prover} from "@vibc-core-smart-contracts/contracts/interfaces/ICrossL2Prover.sol";
 import {ICrossL2ProverV2} from "../src/interfaces/ICrossL2ProverV2.sol";
 import {IInvoiceManager} from "../src/interfaces/IInvoiceManager.sol";
+import {PolymerPaymasterVerifierV1} from "../src/paymasters/PolymerPaymasterVerifierV1.sol";
+import {PolymerPaymasterVerifierV2} from "../src/paymasters/PolymerPaymasterVerifierV2.sol";
+import {ICrossL2Prover} from "@vibc-core-smart-contracts/contracts/interfaces/ICrossL2Prover.sol";
+import {Script, console} from "forge-std/Script.sol";
 
 contract DeployPolymerPaymasterVerifier is Script {
     address internal crossL2Prover = vm.envAddress("CROSS_L2_PROVER");
