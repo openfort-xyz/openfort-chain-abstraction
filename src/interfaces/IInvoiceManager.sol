@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IVault} from "./IVault.sol";
 import {IPaymasterVerifier} from "../interfaces/IPaymasterVerifier.sol";
+import {IVault} from "./IVault.sol";
 
 /**
  * @title Interface for the InvoiceManager contract.
@@ -25,9 +25,7 @@ interface IInvoiceManager {
      * @param paymaster The address of the paymaster.
      * @param paymasterVerifier The address of the paymaster verifier.
      */
-    event PaymasterRevoked(
-        address indexed account, address indexed paymaster, IPaymasterVerifier indexed paymasterVerifier
-    );
+    event PaymasterRevoked(address indexed account, address indexed paymaster, IPaymasterVerifier indexed paymasterVerifier);
 
     /**
      * @notice Emitted when an invoice is created.
@@ -111,8 +109,7 @@ interface IInvoiceManager {
      * @param repayTokenVaults The vault of the tokens to repay.
      * @param repayAmounts The amounts to repay.
      */
-    function withdrawToAccount(address account, IVault[] calldata repayTokenVaults, uint256[] calldata repayAmounts)
-        external;
+    function withdrawToAccount(address account, IVault[] calldata repayTokenVaults, uint256[] calldata repayAmounts) external;
 
     /**
      * @notice Get the CAB paymaster.

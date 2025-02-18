@@ -1,5 +1,5 @@
-import {Script, console} from "forge-std/Script.sol";
 import {CABPaymasterFactory} from "../src/paymasters/CABPaymasterFactory.sol";
+import {Script, console} from "forge-std/Script.sol";
 
 contract DeployCABPaymasterFactory is Script {
     function run() public {
@@ -8,8 +8,7 @@ contract DeployCABPaymasterFactory is Script {
         address verifyingSigner = vm.envAddress("VERIFYING_SIGNER");
         address owner = vm.envAddress("OWNER");
         vm.startBroadcast();
-        address cabPaymasterFactory =
-            address(new CABPaymasterFactory{salt: versionSalt}(owner, invoiceManager, verifyingSigner));
+        address cabPaymasterFactory = address(new CABPaymasterFactory{salt: versionSalt}(owner, invoiceManager, verifyingSigner));
         console.log("CABPaymasterFactory deployed at", cabPaymasterFactory);
         vm.stopBroadcast();
     }

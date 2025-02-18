@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IVault} from "./IVault.sol";
 import {IInvoiceManager} from "./IInvoiceManager.sol";
+import {IVault} from "./IVault.sol";
 
 /**
  * @title Interface for the PaymasterVerifier contract.
@@ -21,9 +21,7 @@ interface IPaymasterVerifier {
      * @param invoice The invoice to verify.
      * @param proof The proof of the invoice.
      */
-    function verifyInvoice(
-        bytes32 invoiceId,
-        IInvoiceManager.InvoiceWithRepayTokens calldata invoice,
-        bytes calldata proof
-    ) external returns (bool);
+    function verifyInvoice(bytes32 invoiceId, IInvoiceManager.InvoiceWithRepayTokens calldata invoice, bytes calldata proof)
+        external
+        returns (bool);
 }

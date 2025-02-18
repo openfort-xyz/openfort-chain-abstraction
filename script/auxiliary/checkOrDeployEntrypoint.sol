@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Script} from "forge-std/Script.sol";
-import {IEntryPoint, EntryPoint} from "account-abstraction/core/EntryPoint.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import {EntryPoint, IEntryPoint} from "account-abstraction/core/EntryPoint.sol";
+import {Script} from "forge-std/Script.sol";
+
 import {console} from "forge-std/console.sol";
 
 contract CheckOrDeployEntryPoint is Script {
@@ -26,8 +27,7 @@ contract CheckOrDeployEntryPoint is Script {
             vm.etch(targetAddr, code);
             entryPoint = IEntryPoint(payable(targetAddr));
             require(
-                IERC165(address(entryPoint)).supportsInterface(type(IEntryPoint).interfaceId),
-                "IEntryPoint interface mismatch"
+                IERC165(address(entryPoint)).supportsInterface(type(IEntryPoint).interfaceId), "IEntryPoint interface mismatch"
             );
             console.log("EntryPoint deployed at", address(entryPoint));
         } else {

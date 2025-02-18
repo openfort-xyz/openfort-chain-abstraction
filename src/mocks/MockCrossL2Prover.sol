@@ -16,11 +16,7 @@ contract MockCrossL2Prover is ICrossL2Prover {
         );
     }
 
-    function validateReceipt(bytes calldata proof)
-        external
-        view
-        returns (string memory srcChainId, bytes calldata receiptRLP)
-    {
+    function validateReceipt(bytes calldata proof) external view returns (string memory srcChainId, bytes calldata receiptRLP) {
         revert("not implemented");
     }
 

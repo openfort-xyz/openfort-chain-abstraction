@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Script, console} from "forge-std/Script.sol";
 import {IInvoiceManager} from "../src/interfaces/IInvoiceManager.sol";
 import {IVaultManager} from "../src/interfaces/IVaultManager.sol";
+import {Script, console} from "forge-std/Script.sol";
 
-import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
-import {CheckOrDeployEntryPoint} from "./auxiliary/checkOrDeployEntrypoint.sol";
-import {DeployPolymerPaymasterVerifier} from "./deployPolymerPaymasterVerifier.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {InvoiceManager} from "../src/core/InvoiceManager.sol";
+import {CABPaymaster} from "../src/paymasters/CABPaymaster.sol";
+import {CABPaymasterFactory} from "../src/paymasters/CABPaymasterFactory.sol";
 import {UpgradeableOpenfortProxy} from "../src/proxy/UpgradeableOpenfortProxy.sol";
 import {BaseVault} from "../src/vaults/BaseVault.sol";
 import {VaultManager} from "../src/vaults/VaultManager.sol";
-import {CABPaymaster} from "../src/paymasters/CABPaymaster.sol";
-import {CABPaymasterFactory} from "../src/paymasters/CABPaymasterFactory.sol";
-import {InvoiceManager} from "../src/core/InvoiceManager.sol";
+import {CheckOrDeployEntryPoint} from "./auxiliary/checkOrDeployEntrypoint.sol";
+import {DeployPolymerPaymasterVerifier} from "./deployPolymerPaymasterVerifier.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 
 // forge script script/deployChainAbstractionSetup.s.sol:DeployChainAbstractionSetup "[0xusdc, 0xusdt]" --sig "run(address[])" --via-ir --rpc-url=127.0.0.1:854
 
@@ -49,10 +49,7 @@ contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint, DeployP
                 new UpgradeableOpenfortProxy{salt: versionSalt}(
                     address(new VaultManager()),
                     abi.encodeWithSelector(
-                        VaultManager.initialize.selector,
-                        owner,
-                        IInvoiceManager(address(invoiceManager)),
-                        withdrawLockBlock
+                        VaultManager.initialize.selector, owner, IInvoiceManager(address(invoiceManager)), withdrawLockBlock
                     )
                 )
             )
@@ -71,9 +68,7 @@ contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint, DeployP
                     new UpgradeableOpenfortProxy{salt: versionSalt}(
                         // Note: avoid create2 collision by using a different salt for each vault
                         address(new BaseVault{salt: versionSalt << i}()),
-                        abi.encodeWithSelector(
-                            BaseVault.initialize.selector, IVaultManager(address(vaultManager)), IERC20(token)
-                        )
+                        abi.encodeWithSelector(BaseVault.initialize.selector, IVaultManager(address(vaultManager)), IERC20(token))
                     )
                 )
             );

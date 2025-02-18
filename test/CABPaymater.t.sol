@@ -1,25 +1,30 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Test} from "forge-std/Test.sol";
-import {PackedUserOperation} from "account-abstraction/core/UserOperationLib.sol";
-import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
-import {CABPaymaster} from "../src/paymasters/CABPaymaster.sol";
-import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {InvoiceManager} from "../src/core/InvoiceManager.sol";
-import {VaultManager} from "../src/vaults/VaultManager.sol";
+
+import {IInvoiceManager} from "../src/interfaces/IInvoiceManager.sol";
+
+import {IPaymasterVerifier} from "../src/interfaces/IPaymasterVerifier.sol";
 import {IVault} from "../src/interfaces/IVault.sol";
 import {IVaultManager} from "../src/interfaces/IVaultManager.sol";
-import {BaseVault} from "../src/vaults/BaseVault.sol";
-import {IInvoiceManager} from "../src/interfaces/IInvoiceManager.sol";
-import {UpgradeableOpenfortProxy} from "../src/proxy/UpgradeableOpenfortProxy.sol";
-import {MockERC20} from "../src/mocks/MockERC20.sol";
-import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
-import {IPaymasterVerifier} from "../src/interfaces/IPaymasterVerifier.sol";
-import {IPaymaster} from "account-abstraction/interfaces/IPaymaster.sol";
-import {ICrossL2Prover} from "@vibc-core-smart-contracts/contracts/interfaces/ICrossL2Prover.sol";
+
 import {MockCrossL2Prover} from "../src/mocks/MockCrossL2Prover.sol";
+import {MockERC20} from "../src/mocks/MockERC20.sol";
+import {CABPaymaster} from "../src/paymasters/CABPaymaster.sol";
+
 import {PolymerPaymasterVerifierV1} from "../src/paymasters/PolymerPaymasterVerifierV1.sol";
+import {UpgradeableOpenfortProxy} from "../src/proxy/UpgradeableOpenfortProxy.sol";
+import {BaseVault} from "../src/vaults/BaseVault.sol";
+import {VaultManager} from "../src/vaults/VaultManager.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+
+import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import {ICrossL2Prover} from "@vibc-core-smart-contracts/contracts/interfaces/ICrossL2Prover.sol";
+import {PackedUserOperation} from "account-abstraction/core/UserOperationLib.sol";
+import {IPaymaster} from "account-abstraction/interfaces/IPaymaster.sol";
+import {Test} from "forge-std/Test.sol";
 
 contract CABPaymasterTest is Test {
     uint256 immutable BASE_SEPOLIA_CHAIN_ID = 84532;
@@ -57,9 +62,7 @@ contract CABPaymasterTest is Test {
             payable(
                 new UpgradeableOpenfortProxy(
                     address(new VaultManager()),
-                    abi.encodeWithSelector(
-                        VaultManager.initialize.selector, owner, IInvoiceManager(address(invoiceManager)), 42
-                    )
+                    abi.encodeWithSelector(VaultManager.initialize.selector, owner, IInvoiceManager(address(invoiceManager)), 42)
                 )
             )
         );
@@ -68,9 +71,7 @@ contract CABPaymasterTest is Test {
             payable(
                 new UpgradeableOpenfortProxy(
                     address(new BaseVault()),
-                    abi.encodeWithSelector(
-                        BaseVault.initialize.selector, IVaultManager(address(vaultManager)), mockERC20
-                    )
+                    abi.encodeWithSelector(BaseVault.initialize.selector, IVaultManager(address(vaultManager)), mockERC20)
                 )
             )
         );
@@ -133,8 +134,7 @@ contract CABPaymasterTest is Test {
     function getEncodedRepayTokens(uint8 len) internal returns (bytes memory encodedRepayToken) {
         IInvoiceManager.RepayTokenInfo[] memory repayTokens = new IInvoiceManager.RepayTokenInfo[](len);
         for (uint8 i = 0; i < len; i++) {
-            repayTokens[i] =
-                IInvoiceManager.RepayTokenInfo({vault: openfortVault, amount: 500, chainId: OPTIMISM_CHAIN_ID});
+            repayTokens[i] = IInvoiceManager.RepayTokenInfo({vault: openfortVault, amount: 500, chainId: OPTIMISM_CHAIN_ID});
             encodedRepayToken = bytes.concat(
                 encodedRepayToken,
                 bytes20(address(repayTokens[i].vault)),
@@ -209,16 +209,14 @@ contract CABPaymasterTest is Test {
             )
         );
 
-        (uint8 v, bytes32 r, bytes32 s) =
-            vm.sign(verifyingSignerPrivateKey, MessageHashUtils.toEthSignedMessageHash(userOpHash));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(verifyingSignerPrivateKey, MessageHashUtils.toEthSignedMessageHash(userOpHash));
         // Append signature to paymasterAndData
         bytes memory signature = abi.encodePacked(r, s, v);
 
         userOp.paymasterAndData = bytes.concat(userOp.paymasterAndData, signature);
 
         vm.startPrank(ENTRY_POINT_V7);
-        (bytes memory context, uint256 validationData) =
-            paymaster.validatePaymasterUserOp(userOp, userOpHash, type(uint256).max);
+        (bytes memory context, uint256 validationData) = paymaster.validatePaymasterUserOp(userOp, userOpHash, type(uint256).max);
 
         uint256 allowanceAfterValidation = mockERC20.allowance(address(paymaster), userOp.sender);
         assertEq(allowanceAfterValidation, 500);
@@ -290,8 +288,7 @@ contract CABPaymasterTest is Test {
             )
         );
 
-        (uint8 v, bytes32 r, bytes32 s) =
-            vm.sign(verifyingSignerPrivateKey, MessageHashUtils.toEthSignedMessageHash(userOpHash));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(verifyingSignerPrivateKey, MessageHashUtils.toEthSignedMessageHash(userOpHash));
         // Append signature to paymasterAndData
         bytes memory signature = abi.encodePacked(r, s, v);
 
@@ -299,8 +296,7 @@ contract CABPaymasterTest is Test {
 
         vm.startPrank(ENTRY_POINT_V7);
         vm.deal(address(paymaster), 1 ether);
-        (bytes memory context, uint256 validationData) =
-            paymaster.validatePaymasterUserOp(userOp, userOpHash, type(uint256).max);
+        (bytes memory context, uint256 validationData) = paymaster.validatePaymasterUserOp(userOp, userOpHash, type(uint256).max);
 
         assertEq(address(userOp.sender).balance, 500);
 

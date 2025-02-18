@@ -1,10 +1,32 @@
+/*
+
+,gggggggggggg,                                       
+dP"""88""""""Y8b,                    ,dPYb,           
+Yb,  88       `8b,                   IP'`Yb           
+ `"  88        `8b  gg               I8  8I           
+     88         Y8  ""               I8  8'           
+     88         d8  gg     ,gggg,gg  I8 dP  gg     gg 
+     88        ,8P  88    dP"  "Y8I  I8dP   I8     8I 
+     88       ,8P'  88   i8'    ,8I  I8P    I8,   ,8I 
+     88______,dP' _,88,_,d8,   ,d8b,,d8b,_ ,d8b, ,d8I 
+    888888888P"   8P""Y8P"Y8888P"`Y88P'"Y88P""Y88P"888
+                                                 ,d8I'
+                                               ,dP'8I 
+                                              ,8"  8I 
+                                              I8   8I 
+                                              `8, ,8I 
+                                               `Y8P"  
+
+*/
+
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 import {IInvoiceManager} from "../interfaces/IInvoiceManager.sol";
 import {IPaymasterVerifier} from "../interfaces/IPaymasterVerifier.sol";
@@ -42,10 +64,7 @@ contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardU
     }
 
     /// @inheritdoc IInvoiceManager
-    function registerPaymaster(address paymaster, IPaymasterVerifier paymasterVerifier, uint256 expiry)
-        external
-        override
-    {
+    function registerPaymaster(address paymaster, IPaymasterVerifier paymasterVerifier, uint256 expiry) external override {
         require(expiry > block.timestamp, "InvoiceManager: invalid expiry");
         require(cabPaymasters[msg.sender].paymaster == address(0), "InvoiceManager: paymaster already registered");
 
@@ -66,11 +85,7 @@ contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardU
     }
 
     /// @inheritdoc IInvoiceManager
-    function createInvoice(uint256 nonce, address account, bytes32 invoiceId)
-        external
-        override
-        onlyPaymaster(account)
-    {
+    function createInvoice(uint256 nonce, address account, bytes32 invoiceId) external override onlyPaymaster(account) {
         // check if the invoice already exists
         require(invoices[invoiceId].account == address(0), "InvoiceManager: invoice already exists");
         // store the invoice
@@ -135,11 +150,7 @@ contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardU
         return keccak256(abi.encodePacked(account, paymaster, nonce, sponsorChainId, repayTokenInfos));
     }
 
-    function _getRepayToken(InvoiceWithRepayTokens memory invoice)
-        internal
-        view
-        returns (IVault[] memory, uint256[] memory)
-    {
+    function _getRepayToken(InvoiceWithRepayTokens memory invoice) internal view returns (IVault[] memory, uint256[] memory) {
         IVault[] memory vaults = new IVault[](invoice.repayTokenInfos.length);
         uint256[] memory amounts = new uint256[](invoice.repayTokenInfos.length);
         uint256 count = 0;

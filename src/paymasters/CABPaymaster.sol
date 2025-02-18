@@ -1,18 +1,41 @@
+/*
+
+,gggggggggggg,                                       
+dP"""88""""""Y8b,                    ,dPYb,           
+Yb,  88       `8b,                   IP'`Yb           
+ `"  88        `8b  gg               I8  8I           
+     88         Y8  ""               I8  8'           
+     88         d8  gg     ,gggg,gg  I8 dP  gg     gg 
+     88        ,8P  88    dP"  "Y8I  I8dP   I8     8I 
+     88       ,8P'  88   i8'    ,8I  I8P    I8,   ,8I 
+     88______,dP' _,88,_,d8,   ,d8b,,d8b,_ ,d8b, ,d8I 
+    888888888P"   8P""Y8P"Y8888P"`Y88P'"Y88P""Y88P"888
+                                                 ,d8I'
+                                               ,dP'8I 
+                                              ,8"  8I 
+                                              I8   8I 
+                                              `8, ,8I 
+                                               `Y8P"  
+
+*/
+
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
-import "account-abstraction/core/BasePaymaster.sol";
-import "account-abstraction/core/UserOperationLib.sol";
-import "account-abstraction/core/Helpers.sol";
+import {IInvoiceManager} from "../interfaces/IInvoiceManager.sol";
+
+import {IPaymasterVerifier} from "../interfaces/IPaymasterVerifier.sol";
+import {IVault} from "../interfaces/IVault.sol";
+import {LibTokens} from "../libraries/LibTokens.sol";
+
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
-import {IInvoiceManager} from "../interfaces/IInvoiceManager.sol";
-import {LibTokens} from "../libraries/LibTokens.sol";
-import {IVault} from "../interfaces/IVault.sol";
-import {IPaymasterVerifier} from "../interfaces/IPaymasterVerifier.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "account-abstraction/core/BasePaymaster.sol";
+import "account-abstraction/core/Helpers.sol";
+import "account-abstraction/core/UserOperationLib.sol";
 
 /**
  * @title CABPaymaster
@@ -29,7 +52,6 @@ contract CABPaymaster is BasePaymaster, Initializable {
 
     uint256 private constant VALID_TIMESTAMP_OFFSET = PAYMASTER_DATA_OFFSET;
     uint256 private constant SIGNATURE_OFFSET = VALID_TIMESTAMP_OFFSET + 12;
-
     address public constant ENTRY_POINT_V7 = 0x0000000071727De22E5E9d8BAf0edAc6f37da032;
 
     constructor(IInvoiceManager _invoiceManager, address _verifyingSigner, address _owner)
@@ -44,8 +66,6 @@ contract CABPaymaster is BasePaymaster, Initializable {
             tokensStore.addSupportedToken(_supportedTokens[i]);
         }
     }
-
-    // ================================================ ADMIN ZONE =========================================
 
     function withdraw(address token, uint256 amount) external onlyOwner {
         // NOTE: tokenStore.NATIVE_TOKEN will withdraw native
@@ -67,8 +87,6 @@ contract CABPaymaster is BasePaymaster, Initializable {
         emit LibTokens.SupportedTokenRemoved(token);
     }
 
-    // ================================================ ENTRYPOINT ZONE ====================================
-
     function _validatePaymasterUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash, uint256 requiredPreFund)
         internal
         override
@@ -76,8 +94,7 @@ contract CABPaymaster is BasePaymaster, Initializable {
     {
         (requiredPreFund);
         address sender = userOp.getSender();
-        (uint48 validUntil, uint48 validAfter, bytes calldata signature) =
-            parsePaymasterAndData(userOp.paymasterAndData);
+        (uint48 validUntil, uint48 validAfter, bytes calldata signature) = parsePaymasterAndData(userOp.paymasterAndData);
 
         (bytes calldata repayTokenData, bytes calldata sponsorTokenData, bytes memory paymasterSignature) =
             parsePaymasterSignature(signature);
@@ -91,9 +108,7 @@ contract CABPaymaster is BasePaymaster, Initializable {
             LibTokens.frontToken(sponsorTokens[i].token, sponsorTokens[i].spender, sponsorTokens[i].amount);
         }
 
-        bytes32 invoiceId =
-            invoiceManager.getInvoiceId(sender, address(this), userOp.nonce, block.chainid, repayTokenData);
-
+        bytes32 invoiceId = invoiceManager.getInvoiceId(sender, address(this), userOp.nonce, block.chainid, repayTokenData);
         bytes32 hash = MessageHashUtils.toEthSignedMessageHash(getHash(userOp, validUntil, validAfter));
 
         // don't revert on signature failure: return SIG_VALIDATION_FAILED
@@ -134,13 +149,7 @@ contract CABPaymaster is BasePaymaster, Initializable {
         }
     }
 
-    // ================================================ VIEW POINT ========================================
-
-    function getHash(PackedUserOperation calldata userOp, uint48 validUntil, uint48 validAfter)
-        public
-        view
-        returns (bytes32)
-    {
+    function getHash(PackedUserOperation calldata userOp, uint48 validUntil, uint48 validAfter) public view returns (bytes32) {
         // can't use userOp.hash(), since it contains also the paymasterAndData itself.
         address sender = userOp.getSender();
         (,, bytes calldata signature) = parsePaymasterAndData(userOp.paymasterAndData);
@@ -168,8 +177,6 @@ contract CABPaymaster is BasePaymaster, Initializable {
     function getSupportedTokens() public view returns (address[] memory) {
         return tokensStore.getSupportedTokens();
     }
-
-    // ================================================ INTERNAL HELPERS =======================================
 
     function parsePaymasterAndData(bytes calldata paymasterAndData)
         internal
@@ -206,8 +213,7 @@ contract CABPaymaster is BasePaymaster, Initializable {
         repayTokenData = signature[0:1 + repayTokenLength * 84];
         sponsorTokenData = signature[1 + repayTokenLength * 84:1 + repayTokenLength * 84 + 1 + sponsorTokenLength * 72];
         paymasterSignature = signature[
-            1 + repayTokenLength * 84 + 1 + sponsorTokenLength * 72:
-                1 + repayTokenLength * 84 + 1 + sponsorTokenLength * 72 + 65
+            1 + repayTokenLength * 84 + 1 + sponsorTokenLength * 72:1 + repayTokenLength * 84 + 1 + sponsorTokenLength * 72 + 65
         ];
     }
 

@@ -3,11 +3,12 @@ pragma solidity ^0.8.0;
 
 import {IVault} from "../interfaces/IVault.sol";
 import {IVaultManager} from "../interfaces/IVaultManager.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 /**
  * @title Implementation of the IVault interface.
  */
@@ -53,13 +54,7 @@ contract BaseVault is UUPSUpgradeable, OwnableUpgradeable, IVault {
     function _authorizeUpgrade(address) internal override onlyOwner {}
 
     /// @inheritdoc IVault
-    function deposit(IERC20 token, uint256 amount, bool isYield)
-        external
-        virtual
-        override
-        onlyVaultManager
-        returns (uint256)
-    {
+    function deposit(IERC20 token, uint256 amount, bool isYield) external virtual override onlyVaultManager returns (uint256) {
         _beforeDeposit(token, amount, isYield);
 
         uint256 priorTotalShares = totalShares;
@@ -75,12 +70,7 @@ contract BaseVault is UUPSUpgradeable, OwnableUpgradeable, IVault {
     }
 
     /// @inheritdoc IVault
-    function withdraw(IERC20 token, uint256 amountShares, address recipient)
-        external
-        virtual
-        override
-        onlyVaultManager
-    {
+    function withdraw(IERC20 token, uint256 amountShares, address recipient) external virtual override onlyVaultManager {
         _beforeWithdraw(token, amountShares, recipient);
 
         uint256 priorTotalShares = totalShares;
