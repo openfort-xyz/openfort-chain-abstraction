@@ -6,6 +6,8 @@ evm_version = "paris"
 via_ir = true
 gas_reports = ["*"]
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
+
 [fmt]
 line_length = 130
 sort_imports = true
+single_line_statement_blocks = "single"

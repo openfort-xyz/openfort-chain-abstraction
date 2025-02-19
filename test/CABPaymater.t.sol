@@ -101,7 +101,7 @@ contract CABPaymasterTest is Test {
         );
     }
 
-    function getEncodedSponsorTokens(uint8 len, address token) internal returns (bytes memory encodedSponsorToken) {
+    function getEncodedSponsorTokens(uint8 len, address token) internal view returns (bytes memory encodedSponsorToken) {
         IPaymasterVerifier.SponsorToken[] memory sponsorTokens = new IPaymasterVerifier.SponsorToken[](len);
         for (uint8 i = 0; i < len; i++) {
             sponsorTokens[i] = IPaymasterVerifier.SponsorToken({token: token, spender: rekt, amount: 500});
@@ -131,7 +131,7 @@ contract CABPaymasterTest is Test {
         return abi.encodePacked(uint8(repayTokens.length), encodedRepayToken);
     }
 
-    function getEncodedRepayTokens(uint8 len) internal returns (bytes memory encodedRepayToken) {
+    function getEncodedRepayTokens(uint8 len) internal view returns (bytes memory encodedRepayToken) {
         IInvoiceManager.RepayTokenInfo[] memory repayTokens = new IInvoiceManager.RepayTokenInfo[](len);
         for (uint8 i = 0; i < len; i++) {
             repayTokens[i] = IInvoiceManager.RepayTokenInfo({vault: openfortVault, amount: 500, chainId: OPTIMISM_CHAIN_ID});
@@ -145,7 +145,7 @@ contract CABPaymasterTest is Test {
         return abi.encodePacked(uint8(len), encodedRepayToken);
     }
 
-    function testEncodeRepayToken() public {
+    function testEncodeRepayToken() public pure {
         IInvoiceManager.RepayTokenInfo[] memory repayTokens = new IInvoiceManager.RepayTokenInfo[](1);
         repayTokens[0] = IInvoiceManager.RepayTokenInfo({
             vault: IVault(address(0x8e2048c85Eae2a4443408C284221B33e61906463)),
@@ -216,7 +216,7 @@ contract CABPaymasterTest is Test {
         userOp.paymasterAndData = bytes.concat(userOp.paymasterAndData, signature);
 
         vm.startPrank(ENTRY_POINT_V7);
-        (bytes memory context, uint256 validationData) = paymaster.validatePaymasterUserOp(userOp, userOpHash, type(uint256).max);
+        (bytes memory context,) = paymaster.validatePaymasterUserOp(userOp, userOpHash, type(uint256).max);
 
         uint256 allowanceAfterValidation = mockERC20.allowance(address(paymaster), userOp.sender);
         assertEq(allowanceAfterValidation, 500);
@@ -296,7 +296,7 @@ contract CABPaymasterTest is Test {
 
         vm.startPrank(ENTRY_POINT_V7);
         vm.deal(address(paymaster), 1 ether);
-        (bytes memory context, uint256 validationData) = paymaster.validatePaymasterUserOp(userOp, userOpHash, type(uint256).max);
+        (bytes memory context,) = paymaster.validatePaymasterUserOp(userOp, userOpHash, type(uint256).max);
 
         assertEq(address(userOp.sender).balance, 500);
 
@@ -314,7 +314,7 @@ contract CABPaymasterTest is Test {
         paymaster.postOp(IPaymaster.PostOpMode.opSucceeded, context, 1222, 42);
     }
 
-    function testGetInvoiceId() public {
+    function testGetInvoiceId() public view {
         address account = 0x5E3Ae8798eAdE56c3B4fe8F085DAd16D4912Ba83;
         address paymaster = 0xF6e64504ed56ec2725CDd0b3C1b23626D66008A2;
         uint256 nonce = 32005827482497451446878209048576;

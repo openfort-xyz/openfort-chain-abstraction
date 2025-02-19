@@ -14,9 +14,7 @@ import {VaultManager} from "../src/vaults/VaultManager.sol";
 import {CheckOrDeployEntryPoint} from "./auxiliary/checkOrDeployEntrypoint.sol";
 import {DeployPolymerPaymasterVerifier} from "./deployPolymerPaymasterVerifier.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 
-// forge script script/deployChainAbstractionSetup.s.sol:DeployChainAbstractionSetup "[0xusdc, 0xusdt]" --sig "run(address[])" --via-ir --rpc-url=127.0.0.1:854
 
 contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint, DeployPolymerPaymasterVerifier {
     uint256 internal deployerPrivKey = vm.envUint("PK_DEPLOYER");
@@ -28,9 +26,7 @@ contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint, DeployP
     bytes32 internal versionSalt = vm.envBytes32("VERSION_SALT");
 
     function run(address[] calldata tokens) public {
-        if (tokens.length == 0) {
-            revert("No tokens provided");
-        }
+        if (tokens.length == 0) revert("No tokens provided");
 
         console.log("Deployer Address", deployer);
         console.log("Owner Address", owner);
@@ -60,9 +56,7 @@ contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint, DeployP
 
         for (uint256 i = 0; i < tokens.length; i++) {
             address token = tokens[i];
-            if (token.code.length == 0) {
-                revert("Token not deployed");
-            }
+            if (token.code.length == 0) revert("Token not deployed");
             BaseVault vault = BaseVault(
                 payable(
                     new UpgradeableOpenfortProxy{salt: versionSalt}(
@@ -76,7 +70,7 @@ contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint, DeployP
             vaultManager.addVault(vault);
         }
 
-        IEntryPoint entryPoint = checkOrDeployEntryPoint();
+        checkOrDeployEntryPoint();
 
         CABPaymasterFactory paymasterFactory =
             new CABPaymasterFactory{salt: versionSalt}(paymasterFactoryOwner, address(invoiceManager), verifyingSigner);

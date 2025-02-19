@@ -62,13 +62,16 @@ contract CABPaymaster is BasePaymaster, Initializable {
     }
 
     function initialize(address[] memory _supportedTokens) public initializer {
-        for (uint256 i = 0; i < _supportedTokens.length; ++i) {
+        for (uint256 i = 0; i < _supportedTokens.length;) {
             tokensStore.addSupportedToken(_supportedTokens[i]);
+            unchecked {
+                ++i;
+            }
         }
     }
 
     function withdraw(address token, uint256 amount) external onlyOwner {
-        // NOTE: tokenStore.NATIVE_TOKEN will withdraw native
+        // NOTE: tokenStore.NATIVE_TOKEN will withdraw native (ERC-7528)
         LibTokens.transferToken(token, owner(), amount);
     }
 
@@ -87,12 +90,11 @@ contract CABPaymaster is BasePaymaster, Initializable {
         emit LibTokens.SupportedTokenRemoved(token);
     }
 
-    function _validatePaymasterUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash, uint256 requiredPreFund)
+    function _validatePaymasterUserOp(PackedUserOperation calldata userOp, bytes32 /* userOpHash */, uint256 /* requiredPreFund */)
         internal
         override
         returns (bytes memory context, uint256 validationData)
     {
-        (requiredPreFund);
         address sender = userOp.getSender();
         (uint48 validUntil, uint48 validAfter, bytes calldata signature) = parsePaymasterAndData(userOp.paymasterAndData);
 
@@ -102,10 +104,13 @@ contract CABPaymaster is BasePaymaster, Initializable {
         (uint256 sponsorTokenLength, IPaymasterVerifier.SponsorToken[] memory sponsorTokens) =
             parseSponsorTokenData(sponsorTokenData);
 
-        for (uint256 i = 0; i < sponsorTokenLength; ++i) {
+        for (uint256 i = 0; i < sponsorTokenLength;) {
             // NOTE: front funds to the sender to pay for the intent
             // for ERC20, allowance will be set back to zero after the userOp execution (see _postOp)
             LibTokens.frontToken(sponsorTokens[i].token, sponsorTokens[i].spender, sponsorTokens[i].amount);
+            unchecked {
+                ++i;
+            }
         }
 
         bytes32 invoiceId = invoiceManager.getInvoiceId(sender, address(this), userOp.nonce, block.chainid, repayTokenData);
@@ -133,10 +138,13 @@ contract CABPaymaster is BasePaymaster, Initializable {
 
         (uint8 sponsorTokenLength, IPaymasterVerifier.SponsorToken[] memory sponsorTokens) =
             parseSponsorTokenData(sponsorTokenData);
-        for (uint8 i = 0; i < sponsorTokenLength; ++i) {
+        for (uint8 i = 0; i < sponsorTokenLength;) {
             address token = sponsorTokens[i].token;
             if (token != LibTokens.NATIVE_TOKEN) {
                 require(IERC20(token).approve(sponsorTokens[i].spender, 0), "CABPaymaster: Reset approval failed");
+            }
+            unchecked {
+                ++i;
             }
         }
         // TODO: Batch Proving Optimistation -> write in settlement contract on `opSucceeded`
@@ -229,13 +237,16 @@ contract CABPaymaster is BasePaymaster, Initializable {
         require(sponsorTokenData.length == 1 + sponsorTokenLength * 72, "CABPaymaster: invalid sponsorTokenData length");
 
         sponsorTokens = new IPaymasterVerifier.SponsorToken[](sponsorTokenLength);
-        for (uint256 i = 0; i < uint256(sponsorTokenLength); ++i) {
+        for (uint256 i = 0; i < uint256(sponsorTokenLength);) {
             uint256 offset = 1 + i * 72;
             sponsorTokens[i] = IPaymasterVerifier.SponsorToken(
                 address(bytes20(sponsorTokenData[offset:offset + 20])),
                 address(bytes20(sponsorTokenData[offset + 20:offset + 40])),
                 uint256(bytes32(sponsorTokenData[offset + 40:offset + 72]))
             );
+            unchecked {
+                ++i;
+            }
         }
     }
 

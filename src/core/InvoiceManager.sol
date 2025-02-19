@@ -114,9 +114,7 @@ contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardU
 
         bool isVerified = paymasterVerifier.verifyInvoice(invoiceId, invoice, proof);
 
-        if (!isVerified) {
-            revert("InvoiceManager: invalid invoice");
-        }
+        if (!isVerified) revert("InvoiceManager: invalid invoice");
         (IVault[] memory vaults, uint256[] memory amounts) = _getRepayToken(invoice);
 
         isInvoiceRepaid[invoiceId] = true;
@@ -155,7 +153,7 @@ contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardU
         uint256 nonce,
         uint256 sponsorChainId,
         bytes calldata repayTokenInfos
-    ) public view returns (bytes32) {
+    ) public pure returns (bytes32) {
         return keccak256(abi.encodePacked(account, paymaster, nonce, sponsorChainId, repayTokenInfos));
     }
 
@@ -163,12 +161,17 @@ contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardU
         IVault[] memory vaults = new IVault[](invoice.repayTokenInfos.length);
         uint256[] memory amounts = new uint256[](invoice.repayTokenInfos.length);
         uint256 count = 0;
-        for (uint256 i = 0; i < invoice.repayTokenInfos.length; i++) {
+        for (uint256 i = 0; i < invoice.repayTokenInfos.length;) {
             IInvoiceManager.RepayTokenInfo memory repayTokenInfo = invoice.repayTokenInfos[i];
             if (repayTokenInfo.chainId == block.chainid) {
                 vaults[count] = repayTokenInfo.vault;
                 amounts[count] = repayTokenInfo.amount;
-                count++;
+                unchecked {
+                    ++count;
+                }
+            }
+            unchecked {
+                ++i;
             }
         }
         assembly {
