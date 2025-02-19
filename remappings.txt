@@ -2,3 +2,5 @@
 @openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/
 @vibc-core-smart-contracts/=lib/vibc-core-smart-contracts/
 @solady/=lib/solady/src/
+@eth-optimism/=lib/optimism/packages/
+@hashi=lib/hashi/packages/evm/contracts/
