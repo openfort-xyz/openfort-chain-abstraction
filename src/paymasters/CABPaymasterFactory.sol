@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
 import {IInvoiceManager} from "../interfaces/IInvoiceManager.sol";
 import {CABPaymaster} from "./CABPaymaster.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";

@@ -5,7 +5,7 @@ import {ICrossL2Prover} from "@vibc-core-smart-contracts/contracts/interfaces/IC
 import {LightClientType} from "@vibc-core-smart-contracts/contracts/interfaces/ILightClient.sol";
 
 contract MockCrossL2Prover is ICrossL2Prover {
-    function validateEvent(uint256 logIndex, bytes calldata proof)
+    function validateEvent(uint256, bytes calldata)
         external
         pure
         returns (string memory chainId, address emittingContract, bytes[] memory topics, bytes memory unindexedData)
@@ -16,19 +16,19 @@ contract MockCrossL2Prover is ICrossL2Prover {
         );
     }
 
-    function validateReceipt(bytes calldata proof) external view returns (string memory srcChainId, bytes calldata receiptRLP) {
+    function validateReceipt(bytes calldata) external pure returns (string memory, bytes calldata) {
         revert("not implemented");
     }
 
-    function getState(uint256 height) external view returns (uint256) {
+    function getState(uint256) external pure returns (uint256) {
         revert("not implemented");
     }
 
-    function LIGHT_CLIENT_TYPE() external view returns (LightClientType) {
+    function LIGHT_CLIENT_TYPE() external pure returns (LightClientType) {
         revert("not implemented");
     }
 
-    function updateClient(bytes calldata proof, uint256 height, uint256 appHash) external {
+    function updateClient(bytes calldata, uint256, uint256) external pure {
         revert("not implemented");
     }
 }

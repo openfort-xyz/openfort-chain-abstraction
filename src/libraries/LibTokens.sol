@@ -32,13 +32,16 @@ library LibTokens {
         require(getTokenBalance(token) == 0, "TokenManager: token has balance");
 
         uint256 length = store.tokens.length;
-        for (uint256 i = 0; i < length; ++i) {
+        for (uint256 i = 0; i < length;) {
             if (store.tokens[i] == token) {
                 store.supported[token] = false;
                 // Note: ordering doesn't matter
                 store.tokens[i] = store.tokens[length - 1];
                 store.tokens.pop();
                 break;
+            }
+            unchecked {
+                ++i;
             }
         }
     }

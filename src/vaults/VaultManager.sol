@@ -230,9 +230,7 @@ contract VaultManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardUpg
         require(amount != 0, "VaultManager: share cannot be zero");
 
         // add the vault to the account's vault list if the account has no shares in the vault
-        if (accountShares[account][vault] == 0) {
-            accountVaultList[account].push(vault);
-        }
+        if (accountShares[account][vault] == 0) accountVaultList[account].push(vault);
 
         // update the account shares
         accountShares[account][vault] += amount;
@@ -253,9 +251,7 @@ contract VaultManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardUpg
         accountShares[account][vault] = share;
 
         // remove the vault from the account's vault list if the account has no shares in the vault
-        if (share == 0) {
-            _removeAccountVaultList(account, vault);
-        }
+        if (share == 0) _removeAccountVaultList(account, vault);
     }
 
     function _removeAccountVaultList(address account, IVault vault) internal {
