@@ -33,9 +33,12 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
-import "account-abstraction/core/BasePaymaster.sol";
+
+import {BasePaymaster} from "./BasePaymaster.sol";
+
 import "account-abstraction/core/Helpers.sol";
 import "account-abstraction/core/UserOperationLib.sol";
+import "account-abstraction/interfaces/IEntryPoint.sol";
 
 /**
  * @title CABPaymaster
@@ -59,7 +62,6 @@ contract CABPaymaster is BasePaymaster, Initializable {
     {
         invoiceManager = _invoiceManager;
         verifyingSigner = _verifyingSigner;
-        transferOwnership(_owner);
     }
 
     function initialize(address[] memory _supportedTokens) public initializer {
@@ -91,11 +93,11 @@ contract CABPaymaster is BasePaymaster, Initializable {
         emit LibTokens.SupportedTokenRemoved(token);
     }
 
-    function _validatePaymasterUserOp(PackedUserOperation calldata userOp, bytes32 /* userOpHash */, uint256 /* requiredPreFund */)
-        internal
-        override
-        returns (bytes memory context, uint256 validationData)
-    {
+    function _validatePaymasterUserOp(
+        PackedUserOperation calldata userOp,
+        bytes32, /* userOpHash */
+        uint256 /* requiredPreFund */
+    ) internal override returns (bytes memory context, uint256 validationData) {
         address sender = userOp.getSender();
         (uint48 validUntil, uint48 validAfter, bytes calldata signature) = parsePaymasterAndData(userOp.paymasterAndData);
 
@@ -130,7 +132,7 @@ contract CABPaymaster is BasePaymaster, Initializable {
         );
     }
 
-    function _postOp(PostOpMode mode, bytes calldata context, uint256 actualGasCost, uint256 actualUserOpFeePerGas)
+    function _postOp(PostOpMode mode, bytes calldata context, uint256, /* actualGasCost */ uint256 /* actualUserOpFeePerGas */ )
         internal
         virtual
         override

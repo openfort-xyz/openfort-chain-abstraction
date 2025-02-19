@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
-import "account-abstraction/core/BasePaymaster.sol";
+import {BasePaymaster} from "./BasePaymaster.sol";
 
 import "account-abstraction/core/Helpers.sol";
-import "account-abstraction/core/UserOperationLib.sol";
+import "account-abstraction/interfaces/IEntryPoint.sol";
 
 /**
  * @title DemoAdminPaymaster
@@ -17,8 +17,9 @@ contract DemoAdminPaymaster is BasePaymaster {
 
     constructor(address _owner) BasePaymaster(IEntryPoint(ENTRY_POINT_V7), _owner) {}
 
-    function _validatePaymasterUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash, uint256 requiredPreFund)
+    function _validatePaymasterUserOp(PackedUserOperation calldata, bytes32, uint256)
         internal
+        pure
         override
         returns (bytes memory context, uint256 validationData)
     {
@@ -27,8 +28,5 @@ contract DemoAdminPaymaster is BasePaymaster {
         return ("", 0);
     }
 
-    function _postOp(PostOpMode mode, bytes calldata context, uint256 actualGasCost, uint256 actualUserOpFeePerGas)
-        internal
-        override
-    {}
+    function _postOp(PostOpMode, bytes calldata, uint256, uint256) internal override {}
 }

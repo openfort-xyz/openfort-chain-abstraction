@@ -15,7 +15,6 @@ import {CheckOrDeployEntryPoint} from "./auxiliary/checkOrDeployEntrypoint.sol";
 import {DeployPolymerPaymasterVerifier} from "./deployPolymerPaymasterVerifier.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-
 contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint, DeployPolymerPaymasterVerifier {
     uint256 internal deployerPrivKey = vm.envUint("PK_DEPLOYER");
     uint256 internal withdrawLockBlock = vm.envUint("WITHDRAW_LOCK_BLOCK");

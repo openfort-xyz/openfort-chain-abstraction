@@ -316,7 +316,7 @@ contract CABPaymasterTest is Test {
 
     function testGetInvoiceId() public view {
         address account = 0x5E3Ae8798eAdE56c3B4fe8F085DAd16D4912Ba83;
-        address paymaster = 0xF6e64504ed56ec2725CDd0b3C1b23626D66008A2;
+        address testPaymaster = 0xF6e64504ed56ec2725CDd0b3C1b23626D66008A2;
         uint256 nonce = 32005827482497451446878209048576;
         uint256 sponsorChainId = 84532;
 
@@ -329,7 +329,7 @@ contract CABPaymasterTest is Test {
 
         bytes32 expectedInvoiceId = 0xccabf5a2f5630bf7e426047c30d25fd0afe4bff9651bc648b4174153a38e38d8;
         bytes32 computedInvoiceId =
-            invoiceManager.getInvoiceId(account, paymaster, nonce, sponsorChainId, abi.encode(repayTokens));
+            invoiceManager.getInvoiceId(account, testPaymaster, nonce, sponsorChainId, abi.encode(repayTokens));
         assertEq(computedInvoiceId, expectedInvoiceId, "Invoice ID computation mismatch");
     }
 
