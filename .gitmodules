@@ -19,3 +19,6 @@
 [submodule "lib/hashi"]
 	path = lib/hashi
 	url = https://github.com/gnosis/hashi
+[submodule "lib/optimism"]
+	path = lib/optimism
+	url = https://github.com/ethereum-optimism/optimism
