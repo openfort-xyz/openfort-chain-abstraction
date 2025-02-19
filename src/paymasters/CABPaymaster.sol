@@ -59,6 +59,7 @@ contract CABPaymaster is BasePaymaster, Initializable {
     {
         invoiceManager = _invoiceManager;
         verifyingSigner = _verifyingSigner;
+        transferOwnership(_owner);
     }
 
     function initialize(address[] memory _supportedTokens) public initializer {
