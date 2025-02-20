@@ -5,15 +5,21 @@ import {ICrossL2Prover} from "@vibc-core-smart-contracts/contracts/interfaces/IC
 import {LightClientType} from "@vibc-core-smart-contracts/contracts/interfaces/ILightClient.sol";
 
 contract MockCrossL2Prover is ICrossL2Prover {
-    function validateEvent(uint256, bytes calldata)
+    address public invoiceManager;
+
+    // Since the InvoiceManager emits the InoiceCreated event
+    // real crossL2Prover.valiadateEvent will return its address
+    constructor(address _invoiceManager) {
+        invoiceManager = _invoiceManager;
+    }
+
+    function validateEvent(uint256, bytes calldata eventData)
         external
-        pure
+        view
         returns (string memory chainId, address emittingContract, bytes[] memory topics, bytes memory unindexedData)
     {
-        (chainId, emittingContract, topics, unindexedData) = abi.decode(
-            hex"00000000000000000000000000000000000000000000000000000000000000800000000000000000000000003cb057fd3be519cb50788b8b282732edbf533dc600000000000000000000000000000000000000000000000000000000000000c000000000000000000000000000000000000000000000000000000000000001a00000000000000000000000000000000000000000000000000000000000000005383435333200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000205243d6c5479d93025de9e138a29c467868f762bb78591e96299fb3f437afcc04000000000000000000000000000000000000000000000000000000000000002028a285ad4af66f8b864972de6e0ea1095667e73ade7db3d93151c0c2660229050000000000000000000000000000000000000000000000000000000000000000",
-            (string, address, bytes[], bytes)
-        );
+        // Decode the provided eventData
+        (chainId, emittingContract, topics, unindexedData) = abi.decode(constructEventData(), (string, address, bytes[], bytes));
     }
 
     function validateReceipt(bytes calldata) external pure returns (string memory, bytes calldata) {
@@ -30,5 +36,18 @@ contract MockCrossL2Prover is ICrossL2Prover {
 
     function updateClient(bytes calldata, uint256, uint256) external pure {
         revert("not implemented");
+    }
+
+    // Helper function to construct the data dynamically (for testing or flexibility)
+    function constructEventData() public view returns (bytes memory) {
+        bytes[] memory topics = new bytes[](2);
+        topics[0] = hex"5243d6c5479d93025de9e138a29c467868f762bb78591e96299fb3f437afcc04";
+        topics[1] = hex"28a285ad4af66f8b864972de6e0ea1095667e73ade7db3d93151c0c266022905";
+        return abi.encode(
+            "84532", // chainId
+            invoiceManager, // emittingContract
+            topics,
+            bytes("") // unindexedData
+        );
     }
 }

@@ -49,15 +49,14 @@ contract CABPaymasterTest is Test {
 
     function setUp() public {
         owner = address(1);
-
         rekt = address(0x9590Ed0C18190a310f4e93CAccc4CC17270bED40);
-        crossL2Prover = ICrossL2Prover(address(new MockCrossL2Prover()));
 
         verifyingSignerPrivateKey = uint256(keccak256(abi.encodePacked("VERIFIYING_SIGNER")));
         verifyingSignerAddress = vm.addr(verifyingSignerPrivateKey);
         vm.label(verifyingSignerAddress, "VERIFIYING_SIGNER");
 
         invoiceManager = InvoiceManager(payable(new UpgradeableOpenfortProxy(address(new InvoiceManager()), "")));
+
         vaultManager = VaultManager(
             payable(
                 new UpgradeableOpenfortProxy(
@@ -66,6 +65,7 @@ contract CABPaymasterTest is Test {
                 )
             )
         );
+
         mockERC20 = new MockERC20();
         openfortVault = BaseVault(
             payable(
@@ -77,10 +77,7 @@ contract CABPaymasterTest is Test {
         );
 
         invoiceManager.initialize(owner, IVaultManager(address(vaultManager)));
-
-        polymerPaymasterVerifier = new PolymerPaymasterVerifierV1(
-            IInvoiceManager(address(invoiceManager)), ICrossL2Prover(address(crossL2Prover)), owner
-        );
+        crossL2Prover = ICrossL2Prover(address(new MockCrossL2Prover(address(invoiceManager))));
 
         // Initialize the supportedTokens array
         address[] memory supportedTokens = new address[](2);
@@ -96,6 +93,8 @@ contract CABPaymasterTest is Test {
         assertEq(address(vaultManager.invoiceManager()), address(invoiceManager));
 
         vm.startPrank(rekt);
+
+        polymerPaymasterVerifier = new PolymerPaymasterVerifierV1(invoiceManager, crossL2Prover, owner);
         invoiceManager.registerPaymaster(
             address(paymaster), IPaymasterVerifier(address(polymerPaymasterVerifier)), block.timestamp + 100000
         );

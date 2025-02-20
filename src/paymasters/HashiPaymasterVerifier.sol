@@ -27,6 +27,7 @@ import {IPaymasterVerifier} from "../interfaces/IPaymasterVerifier.sol";
 import {LibEncoders} from "../libraries/LibEncoders.sol";
 import {HashiProverLib} from "@hashi/prover/HashiProverLib.sol";
 
+import {RLPReader} from "@eth-optimism/contracts-bedrock/src/libraries/rlp/RLPReader.sol";
 import {ReceiptProof} from "@hashi/prover/HashiProverStructs.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -36,6 +37,8 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
  */
 contract HashiPaymasterVerifier is IPaymasterVerifier, Ownable {
     using LibEncoders for IInvoiceManager.RepayTokenInfo[];
+    using RLPReader for RLPReader.RLPItem;
+    using RLPReader for bytes;
 
     IInvoiceManager public immutable invoiceManager;
     address public immutable shoyuBashi;
@@ -55,12 +58,26 @@ contract HashiPaymasterVerifier is IPaymasterVerifier, Ownable {
         bytes32 invoiceId = invoiceManager.getInvoiceId(
             _invoice.account, _invoice.paymaster, _invoice.nonce, _invoice.sponsorChainId, _invoice.repayTokenInfos.encode()
         );
+
         if (invoiceId != _invoiceId) return false;
+
         ReceiptProof calldata proof;
+
         assembly {
             proof := add(_proof.offset, 0x20)
         }
-        bytes memory topics = HashiProverLib.verifyForeignEvent(proof, shoyuBashi);
+
+        bytes memory logs = HashiProverLib.verifyForeignEvent(proof, shoyuBashi);
+        RLPReader.RLPItem[] memory logFields = logs.toRLPItem().readList();
+
+        if (logFields.length != 3) revert("HashiPaymasterVerifier: InvalidLogFormat");
+
+        address emitter = address(bytes20(logFields[0].readBytes()));
+
+        if (emitter != address(invoiceManager)) return false;
+
+        bytes memory topics = logFields[1].readBytes();
+
         assembly {
             let topic0 := mload(add(topics, 0x20))
             let topic1 := mload(add(topics, 0x40))

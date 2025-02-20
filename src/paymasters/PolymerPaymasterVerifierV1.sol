@@ -46,7 +46,7 @@ contract PolymerPaymasterVerifierV1 is IPaymasterVerifier, Ownable {
         external
         virtual
         override
-        returns (bool)
+        returns (bool success)
     {
         bytes32 invoiceId = invoiceManager.getInvoiceId(
             _invoice.account, _invoice.paymaster, _invoice.nonce, _invoice.sponsorChainId, _invoice.repayTokenInfos.encode()
@@ -55,8 +55,10 @@ contract PolymerPaymasterVerifierV1 is IPaymasterVerifier, Ownable {
         if (invoiceId != _invoiceId) return false;
 
         (uint256 logIndex, bytes memory proof) = abi.decode(_proof, (uint256, bytes));
-        (,, bytes[] memory topics,) = crossL2Prover.validateEvent(logIndex, proof);
+        (, address emitter, bytes[] memory topics,) = crossL2Prover.validateEvent(logIndex, proof);
 
-        return topics[0].eqs(IInvoiceManager.InvoiceCreated.selector) && topics[1].eqs(invoiceId);
+        if (emitter != address(invoiceManager)) return false;
+
+        success = topics[0].eqs(IInvoiceManager.InvoiceCreated.selector) && topics[1].eqs(invoiceId);
     }
 }

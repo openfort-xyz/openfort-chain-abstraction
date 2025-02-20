@@ -57,7 +57,10 @@ contract PolymerPaymasterVerifierV2 is IPaymasterVerifier, Ownable {
         );
 
         if (invoiceId != _invoiceId) return false;
-        (,, bytes memory topics,) = crossL2Prover.validateEvent(_proof);
+
+        (, address emitter, bytes memory topics,) = crossL2Prover.validateEvent(_proof);
+
+        if (emitter != address(invoiceManager)) return false;
 
         assembly {
             let topic0 := mload(add(topics, 0x20))
