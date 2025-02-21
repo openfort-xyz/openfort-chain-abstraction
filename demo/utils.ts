@@ -31,6 +31,18 @@ export async function getBlockNumber(chain: supportedChain) {
   return block;
 }
 
+export async function getLogIndex(txHash: Hex, chain: supportedChain) {
+  const invoiceCreatedSelector =
+    "0x5243d6c5479d93025de9e138a29c467868f762bb78591e96299fb3f437afcc04";
+  const txReceipt = await publicClients[chain].getTransactionReceipt({
+    hash: txHash,
+  });
+  const localLogIndex = txReceipt.logs.findIndex(
+    (log) => log.topics[0] === invoiceCreatedSelector,
+  );
+  return localLogIndex;
+}
+
 export function isAdminCall(callData: Hex) {
   // Note: admin methods requires msg.sender to be the smart account address
   // and DemoAdminPaymaster sponsors the calls

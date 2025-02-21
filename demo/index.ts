@@ -20,7 +20,7 @@ import {
 
 import util from "util";
 import { invoiceManager } from "./Invoice";
-import { getBlockNumber, getBlockTimestamp } from "./utils";
+import { getBlockNumber, getBlockTimestamp, getLogIndex } from "./utils";
 
 const figlet = require("figlet");
 const program = new Command();
@@ -366,7 +366,6 @@ program
     const publicClient = publicClients[chain];
 
     const currentBlock = await getBlockNumber(chain);
-
     const logs = await publicClient.getLogs({
       address: invoiceManager,
       event: parseAbi([
@@ -375,6 +374,13 @@ program
       fromBlock: currentBlock - 10000n,
       toBlock: currentBlock,
     });
+
+    // Note: override log index within the block with transaction log index
+    await Promise.all(
+      logs.map(async (log) => {
+        log.logIndex = await getLogIndex(log.transactionHash, chain);
+      }),
+    );
 
     console.log(
       util.inspect(logs, { showHidden: true, depth: null, colors: true }),
