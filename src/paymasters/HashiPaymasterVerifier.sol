@@ -70,7 +70,7 @@ contract HashiPaymasterVerifier is IPaymasterVerifier, Ownable {
         bytes memory logs = HashiProverLib.verifyForeignEvent(proof, shoyuBashi);
         RLPReader.RLPItem[] memory logFields = logs.toRLPItem().readList();
 
-        if (logFields.length != 3) revert("HashiPaymasterVerifier: InvalidLogFormat");
+        if (logFields.length != 3) revert("Hashi: InvalidLogFormat");
 
         address emitter = address(bytes20(logFields[0].readBytes()));
 

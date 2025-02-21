@@ -13,9 +13,10 @@ import {BaseVault} from "../src/vaults/BaseVault.sol";
 import {VaultManager} from "../src/vaults/VaultManager.sol";
 import {CheckOrDeployEntryPoint} from "./auxiliary/checkOrDeployEntrypoint.sol";
 import {DeployPolymerPaymasterVerifier} from "./deployPolymerPaymasterVerifier.sol";
+import {DeployHashiPaymasterVerifier} from "./deployHashiPaymasterVerifier.s.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint, DeployPolymerPaymasterVerifier {
+contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint, DeployPolymerPaymasterVerifier, DeployHashiPaymasterVerifier {
     uint256 internal deployerPrivKey = vm.envUint("PK_DEPLOYER");
     uint256 internal withdrawLockBlock = vm.envUint("WITHDRAW_LOCK_BLOCK");
     address internal deployer = vm.addr(deployerPrivKey);
@@ -75,9 +76,11 @@ contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint, DeployP
             new CABPaymasterFactory{salt: versionSalt}(paymasterFactoryOwner, address(invoiceManager), verifyingSigner);
 
         address paymaster = paymasterFactory.createCABPaymaster(owner, versionSalt, tokens);
-
         console.log("Paymaster Address", address(paymaster));
-        deployPaymasterVerifier(address(invoiceManager), owner, versionSalt);
+
+        deployPolymerPaymasterVerifier(address(invoiceManager), owner, versionSalt);
+        deployHashiPaymasterVerifier(address(invoiceManager), owner, versionSalt);
+
         vm.stopBroadcast();
     }
 }

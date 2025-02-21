@@ -32,7 +32,9 @@ export async function getBlockNumber(chain: supportedChain) {
 }
 
 export function isAdminCall(callData: Hex) {
-  // Note: admin methods requires msg.sender to be the smart account addres and are sponsored with DemoAdminPaymaster
+  // Note: admin methods requires msg.sender to be the smart account address
+  // and DemoAdminPaymaster sponsors the calls
+
   // InvoiceManager: registerPaymaster, revokePaymaster
   const adminSelectors = ["0xa23f2985", "0x1b8003c7"];
 
@@ -57,7 +59,8 @@ export function computeHash(
   paymasterVerificationGasLimit: bigint,
   paymasterPostOpGasLimit: bigint,
 ) {
-  const repayTokenData = getRepayTokens(userOp.sender);
+  // NOTE: hardcoded repay on polygon for demo purposes
+  const repayTokenData = getRepayTokens(userOp.sender, "polygon");
   const sponsorTokenData = getSponsorTokens(userOp.sender, chain);
   const encodedTokenData = encodeAbiParameters(
     [{ type: "bytes" }, { type: "bytes" }],
@@ -102,13 +105,13 @@ export function computeHash(
   return keccak256(encodedData);
 }
 
-export function getRepayTokens(sender: Address) {
+export function getRepayTokens(sender: Address, chain: supportedChain) {
   // TODO: check sender locked-funds
   return concat([
     "0x01", // length of the array (only one repay token)
-    vaultA["optimism"] as Address, // DEMO: only gets repaid on optimism
+    vaultA[chain] as Address,
     pad(numberToHex(500), { size: 32 }), // DEMO: fixed amount tokens are repaid
-    pad(numberToHex(chainIDs["optimism"]), { size: 32 }),
+    pad(numberToHex(chainIDs[chain]), { size: 32 }),
   ]);
 }
 

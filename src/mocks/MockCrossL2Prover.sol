@@ -13,7 +13,7 @@ contract MockCrossL2Prover is ICrossL2Prover {
         invoiceManager = _invoiceManager;
     }
 
-    function validateEvent(uint256, bytes calldata eventData)
+    function validateEvent(uint256, bytes calldata /* eventData */)
         external
         view
         returns (string memory chainId, address emittingContract, bytes[] memory topics, bytes memory unindexedData)
