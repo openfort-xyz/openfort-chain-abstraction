@@ -16,3 +16,9 @@
 [submodule "lib/vibc-core-smart-contracts"]
 	path = lib/vibc-core-smart-contracts
 	url = https://github.com/open-ibc/vibc-core-smart-contracts
+[submodule "lib/hashi"]
+	path = lib/hashi
+	url = https://github.com/gnosis/hashi
+[submodule "lib/optimism"]
+	path = lib/optimism
+	url = https://github.com/ethereum-optimism/optimism

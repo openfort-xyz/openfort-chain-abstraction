@@ -90,7 +90,8 @@ class InvoiceManager implements InvoiceIO {
   }
 
   getInvoiceId(invoice: InvoiceWithRepayTokens): InvoiceId {
-    const repayTokensEncoded = getRepayTokens(invoice.account);
+    // NOTE: hardcoded polygon for demo purposes
+    const repayTokensEncoded = getRepayTokens(invoice.account, "polygon");
     const packed = encodePacked(
       ["address", "address", "uint256", "uint256", "bytes"],
       [

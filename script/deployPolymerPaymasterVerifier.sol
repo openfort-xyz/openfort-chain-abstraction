@@ -11,8 +11,7 @@ import {Script, console} from "forge-std/Script.sol";
 contract DeployPolymerPaymasterVerifier is Script {
     address internal crossL2Prover = vm.envAddress("CROSS_L2_PROVER");
 
-    function deployPaymasterVerifier(address _invoiceManager, address _owner, bytes32 _versionSalt) public {
-        vm.startBroadcast();
+    function deployPolymerPaymasterVerifier(address _invoiceManager, address _owner, bytes32 _versionSalt) public {
         if (crossL2Prover == 0xb8AcB3FE3117A67b665Bc787c977623612f8a461) {
             PolymerPaymasterVerifierV1 polymerPaymasterVerifier = new PolymerPaymasterVerifierV1{salt: _versionSalt}(
                 IInvoiceManager(_invoiceManager), ICrossL2Prover(crossL2Prover), _owner
@@ -24,6 +23,5 @@ contract DeployPolymerPaymasterVerifier is Script {
             );
             console.log("PolymerPaymasterVerifierV2 deployed at", address(polymerPaymasterVerifierV2));
         }
-        vm.stopBroadcast();
     }
 }

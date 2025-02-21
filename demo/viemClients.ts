@@ -6,10 +6,14 @@ import {
   WalletClient,
 } from "viem";
 import { BundlerClient, createBundlerClient } from "viem/account-abstraction";
-import { baseSepolia, optimismSepolia } from "viem/chains";
+import {
+  baseSepolia,
+  mantleSepoliaTestnet,
+  optimismSepolia,
+  polygonAmoy,
+} from "viem/chains";
 import { ownerAccount, supportedChain } from "./constants";
 import { getPaymasterActions } from "./paymaster";
-import { mantleSepoliaTestnet } from "viem/chains";
 
 // ============================= PUBLIC CLIENTS =============================
 
@@ -28,10 +32,16 @@ const baseSepoliaPublicClient = createPublicClient({
   transport: http(),
 });
 
+const polygonPublicClient = createPublicClient({
+  chain: polygonAmoy,
+  transport: http(),
+});
+
 export const publicClients: Record<supportedChain, PublicClient> = {
   optimism: optimismPublicClient as PublicClient,
   base: baseSepoliaPublicClient as PublicClient,
   mantle: mantleSepoliaPublicClient as PublicClient,
+  polygon: polygonPublicClient as PublicClient,
 };
 
 // ============================= WALLET CLIENTS =============================
@@ -54,10 +64,17 @@ const mantleSepoliaWalletClient = createWalletClient({
   transport: http(),
 });
 
+const polygonWalletClient = createWalletClient({
+  account: ownerAccount,
+  chain: polygonAmoy,
+  transport: http(),
+});
+
 export const walletClients: Record<supportedChain, WalletClient> = {
   optimism: optimismWalletClient,
   base: baseSepoliaWalletClient,
   mantle: mantleSepoliaWalletClient,
+  polygon: polygonWalletClient,
 };
 
 // ============================= BUNDLER CLIENTS =============================
@@ -78,13 +95,20 @@ const optimismBundlerClient = createBundlerClient({
   ),
 });
 
-// NOTE: running local bundler for mantle sepolia demo because pimlico doesn't support it yet
 const mantleSepoliaBundlerClient = createBundlerClient({
   client: mantleSepoliaPublicClient,
   paymaster: getPaymasterActions("mantle"),
-  //transport: http("http://127.0.0.1:4337"),
+
   transport: http(
     `https://api.pimlico.io/v2/mantle-sepolia/rpc?apikey=${process.env.PIMLICO_API_KEY}`,
+  ),
+});
+
+const polygonBundlerClient = createBundlerClient({
+  client: polygonPublicClient,
+  paymaster: getPaymasterActions("polygon"),
+  transport: http(
+    `https://api.pimlico.io/v2/polygon-amoy/rpc?apikey=${process.env.PIMLICO_API_KEY}`,
   ),
 });
 
@@ -92,4 +116,5 @@ export const bundlerClients: Record<supportedChain, BundlerClient> = {
   optimism: optimismBundlerClient as BundlerClient,
   base: baseSepoliaBundlerClient as BundlerClient,
   mantle: mantleSepoliaBundlerClient as BundlerClient,
+  polygon: polygonBundlerClient as BundlerClient,
 };

@@ -55,7 +55,7 @@ contract CABPaymaster is BasePaymaster, Initializable {
 
     uint256 private constant VALID_TIMESTAMP_OFFSET = PAYMASTER_DATA_OFFSET;
     uint256 private constant SIGNATURE_OFFSET = VALID_TIMESTAMP_OFFSET + 12;
-    address public constant ENTRY_POINT_V7 = 0x0000000071727De22E5E9d8BAf0edAc6f37da032;
+    address private constant ENTRY_POINT_V7 = 0x0000000071727De22E5E9d8BAf0edAc6f37da032;
 
     constructor(IInvoiceManager _invoiceManager, address _verifyingSigner, address _owner)
         BasePaymaster(IEntryPoint(ENTRY_POINT_V7), _owner)

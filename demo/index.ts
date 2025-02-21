@@ -11,7 +11,7 @@ import {
   openfortContracts,
   vaultA,
 } from "./constants";
-import { Address, encodeAbiParameters, Hex, parseAbi } from "viem";
+import { Address, Hex, parseAbi } from "viem";
 import { toSimpleSmartAccount } from "./SimpleSmartAccount";
 import {
   entryPoint07Address,
@@ -20,7 +20,7 @@ import {
 
 import util from "util";
 import { invoiceManager } from "./Invoice";
-import { getBlockNumber, getBlockTimestamp } from "./utils";
+import { getBlockNumber, getBlockTimestamp, getLogIndex } from "./utils";
 
 const figlet = require("figlet");
 const program = new Command();
@@ -40,7 +40,7 @@ program
   .addOption(
     new Command()
       .createOption("-c, --chain <chain>", "choose chain")
-      .choices(["base", "mantle", "optimism"]),
+      .choices(["base", "mantle", "optimism", "polygon"]),
   )
   .requiredOption("-s, --account-salt <salt>", "account salt")
   .action(async ({ chain, accountSalt }) => {
@@ -68,7 +68,7 @@ program
   .addOption(
     new Command()
       .createOption("-c, --chain <chain>", "choose chain")
-      .choices(["base", "mantle", "optimism"]),
+      .choices(["base", "mantle", "optimism", "polygon"]),
   )
   .requiredOption("-t, --token <token>", "token address")
   .requiredOption("-a, --amount <amount>", "amount to lock")
@@ -122,7 +122,7 @@ program
   .addOption(
     new Command()
       .createOption("-c, --chain <chain>", "choose chain")
-      .choices(["base", "mantle", "optimism"]),
+      .choices(["base", "mantle", "optimism", "polygon"]),
   )
   .action(async ({ chain }) => {
     if (!isValidChain(chain)) {
@@ -138,7 +138,7 @@ program
   .addOption(
     new Command()
       .createOption("-c, --chain <chain>", "choose chain")
-      .choices(["base", "mantle", "optimism"]),
+      .choices(["base", "mantle", "optimism", "polygon"]),
   )
   .requiredOption("-i, --ipfs-hash <ipfs-hash>", "ipfs hash")
   .requiredOption("-s, --account-salt <salt>", "account salt")
@@ -234,13 +234,12 @@ program
     });
     console.log(`UserOp sent: ${hash}`);
     //  TODO: support multiple source chains
-    const srcChain = "optimism";
+    const srcChain = "polygon";
     const invoiceId = await invoiceManager.writeInvoice({
       account: accountAddress,
       nonce: BigInt(unsignedUserOp.nonce),
       paymaster: openfortContracts[chain].cabPaymaster,
       sponsorChainId: BigInt(chainIDs[chain]),
-
       repayTokenInfos: [
         {
           vault: vaultA[srcChain] as Address,
@@ -291,7 +290,7 @@ program
   .addOption(
     new Command()
       .createOption("-c, --chain <chain>", "choose chain")
-      .choices(["base", "mantle", "optimism"]),
+      .choices(["base", "mantle", "optimism", "polygon"]),
   )
   .requiredOption("-t, --token <token>", "token address")
   .requiredOption("-a, --amount <amount>", "amount to send")
@@ -320,7 +319,7 @@ program
   .addOption(
     new Command()
       .createOption("-c, --chain <chain>", "choose chain")
-      .choices(["base", "mantle", "optimism"]),
+      .choices(["base", "mantle", "optimism", "polygon"]),
   )
   .requiredOption("-p, --proof <proof>", "proof")
   .requiredOption("-i, --invoice-id <invoice-id>", "invoice id")
@@ -357,7 +356,7 @@ program
   .addOption(
     new Command()
       .createOption("-c, --chain <chain>", "choose chain")
-      .choices(["base", "mantle", "optimism"]),
+      .choices(["base", "mantle", "optimism", "polygon"]),
   )
   .action(async ({ chain }) => {
     if (!isValidChain(chain)) {
@@ -367,7 +366,6 @@ program
     const publicClient = publicClients[chain];
 
     const currentBlock = await getBlockNumber(chain);
-
     const logs = await publicClient.getLogs({
       address: invoiceManager,
       event: parseAbi([
@@ -376,6 +374,13 @@ program
       fromBlock: currentBlock - 10000n,
       toBlock: currentBlock,
     });
+
+    // Note: override log index within the block with transaction log index
+    await Promise.all(
+      logs.map(async (log) => {
+        log.logIndex = await getLogIndex(log.transactionHash, chain);
+      }),
+    );
 
     console.log(
       util.inspect(logs, { showHidden: true, depth: null, colors: true }),
@@ -388,15 +393,25 @@ program
   .addOption(
     new Command()
       .createOption("-c, --chain <chain>", "choose chain")
-      .choices(["base", "mantle", "optimism"]),
+      .choices(["base", "mantle", "optimism", "polygon"]),
   )
   .requiredOption("-s, --account-salt <salt>", "account salt")
-  .action(async ({ chain, accountSalt }) => {
+  .addOption(
+    new Command()
+      .createOption("-p, --prover <prover>", "choose prover")
+      .choices(["hashi", "polymer"]),
+  )
+  .action(async ({ chain, accountSalt, prover }) => {
     if (!isValidChain(chain)) {
       throw new Error(`Unsupported chain: ${chain}`);
     }
     const publicClient = publicClients[chain];
     const bundlerClient = bundlerClients[chain];
+    const paymasterVerifierAddress =
+      prover === "hashi"
+        ? openfortContracts[chain].hashiPaymasterVerifier
+        : openfortContracts[chain].polymerPaymasterVerifier;
+    console.log(`paymaster verifier: ${paymasterVerifierAddress}`);
 
     const account = await toSimpleSmartAccount({
       owner: ownerAccount,
@@ -411,11 +426,6 @@ program
     const accountAddress = await account.getAddress();
     console.log(`Account Address: ${accountAddress}`);
 
-    console.log(
-      "paymaster verifier",
-      openfortContracts[chain].paymasterVerifier,
-    );
-
     const unsignedUserOp = await bundlerClient.prepareUserOperation({
       account: account,
       calls: [
@@ -427,7 +437,7 @@ program
           functionName: "registerPaymaster",
           args: [
             openfortContracts[chain].cabPaymaster,
-            openfortContracts[chain].paymasterVerifier,
+            paymasterVerifierAddress,
             (await getBlockTimestamp(chain)) + 1000000n,
           ],
         },
