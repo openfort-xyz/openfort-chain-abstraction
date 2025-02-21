@@ -12,11 +12,17 @@ import {UpgradeableOpenfortProxy} from "../src/proxy/UpgradeableOpenfortProxy.so
 import {BaseVault} from "../src/vaults/BaseVault.sol";
 import {VaultManager} from "../src/vaults/VaultManager.sol";
 import {CheckOrDeployEntryPoint} from "./auxiliary/checkOrDeployEntrypoint.sol";
-import {DeployPolymerPaymasterVerifier} from "./deployPolymerPaymasterVerifier.sol";
+
 import {DeployHashiPaymasterVerifier} from "./deployHashiPaymasterVerifier.s.sol";
+import {DeployPolymerPaymasterVerifier} from "./deployPolymerPaymasterVerifier.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract DeployChainAbstractionSetup is Script, CheckOrDeployEntryPoint, DeployPolymerPaymasterVerifier, DeployHashiPaymasterVerifier {
+contract DeployChainAbstractionSetup is
+    Script,
+    CheckOrDeployEntryPoint,
+    DeployPolymerPaymasterVerifier,
+    DeployHashiPaymasterVerifier
+{
     uint256 internal deployerPrivKey = vm.envUint("PK_DEPLOYER");
     uint256 internal withdrawLockBlock = vm.envUint("WITHDRAW_LOCK_BLOCK");
     address internal deployer = vm.addr(deployerPrivKey);
