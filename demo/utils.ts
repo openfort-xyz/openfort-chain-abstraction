@@ -32,6 +32,7 @@ export async function getBlockNumber(chain: supportedChain) {
 }
 
 export async function getLogIndex(txHash: Hex, chain: supportedChain) {
+  // InvoiceManager.InvoiceCreated.selector
   const invoiceCreatedSelector =
     "0x5243d6c5479d93025de9e138a29c467868f762bb78591e96299fb3f437afcc04";
   const txReceipt = await publicClients[chain].getTransactionReceipt({

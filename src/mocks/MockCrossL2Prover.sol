@@ -7,8 +7,8 @@ import {LightClientType} from "@vibc-core-smart-contracts/contracts/interfaces/I
 contract MockCrossL2Prover is ICrossL2Prover {
     address public invoiceManager;
 
-    // Since the InvoiceManager emits the InoiceCreated event
-    // real crossL2Prover.valiadateEvent will return its address
+    // Since the InvoiceManager emits the InvoiceCreated event
+    // real crossL2Prover.validateEvent will return its address
     constructor(address _invoiceManager) {
         invoiceManager = _invoiceManager;
     }
@@ -38,16 +38,15 @@ contract MockCrossL2Prover is ICrossL2Prover {
         revert("not implemented");
     }
 
-    // Helper function to construct the data dynamically (for testing or flexibility)
     function constructEventData() public view returns (bytes memory) {
         bytes[] memory topics = new bytes[](2);
         topics[0] = hex"5243d6c5479d93025de9e138a29c467868f762bb78591e96299fb3f437afcc04";
         topics[1] = hex"28a285ad4af66f8b864972de6e0ea1095667e73ade7db3d93151c0c266022905";
         return abi.encode(
-            "84532", // chainId
+            "84532", // Base Sepolia chain ID
             invoiceManager, // emittingContract
-            topics,
-            bytes("") // unindexedData
+            topics, // [InvoiceCreated.selector, invoiceId]
+            bytes("") // empty unindexedData
         );
     }
 }
