@@ -21,6 +21,7 @@ import {
 import util from "util";
 import { invoiceManager } from "./Invoice";
 import { getBlockNumber, getBlockTimestamp, getLogIndex } from "./utils";
+import { hashiProverClient } from "./hashiProverClient";
 
 const figlet = require("figlet");
 const program = new Command();
@@ -252,24 +253,33 @@ program
   });
 
 program
-  .command("request-event-proof")
+  .command("request-polymer-event-proof")
   .description("request receipt proof from Polymer")
-  .requiredOption("-s, --src-chain <src-chain-id>", "source chain id")
-  .requiredOption("-b, --src-block <src-block-number>", "source block number")
-  .requiredOption("-t, --tx-index <tx-index>", "transaction index")
-  .requiredOption("-l, --log-index <log-index>", "log index")
-  .action(async ({ srcChain, srcBlock, txIndex, logIndex }) => {
+  .requiredOption("-s, --source-chain <source-chain-id>", "source chain id")
+  .requiredOption(
+    "-b, --source-block <source-block-number>",
+    "source block number",
+  )
+  .requiredOption(
+    "-t, --transaction-index <transaction-index>",
+    "transaction index within the block",
+  )
+  .requiredOption(
+    "-l, --log-index <log-index>",
+    "log index within the transaction",
+  )
+  .action(async ({ sourceChain, sourceBlock, transactionIndex, logIndex }) => {
     const jobId = await polymerProverClient.requestEventProof(
-      srcChain,
-      srcBlock,
-      txIndex,
+      sourceChain,
+      sourceBlock,
+      transactionIndex,
       logIndex,
     );
     console.log(`jobId: ${jobId}`);
   });
 
 program
-  .command("fetch-event-proof")
+  .command("fetch-polymer-event-proof")
   .description("fetch event proof with jobId from Polymer")
   .requiredOption("-j, --job-id <job-id>", "job id")
   .action(async ({ jobId }) => {
@@ -282,6 +292,25 @@ program
         maxStringLength: null,
       }),
     );
+  });
+
+program
+  .command("request-hashi-event-proof")
+  .description("request event proof from Hashi")
+  .requiredOption("-s, --source-chain <source-chain-id>", "source chain id")
+  .requiredOption(
+    "-t, --transaction-hash <transaction-hash>",
+    "transaction hash",
+  )
+  .requiredOption("-l, --log-index <log-index>", "log index within the block")
+  .action(async ({ sourceChain, transactionHash, logIndex }) => {
+    const proof = await hashiProverClient.getReceiptProof(
+      sourceChain,
+      logIndex,
+      transactionHash as Hex,
+    );
+    const encodedProof = hashiProverClient.encodeReceiptProof(proof);
+    console.log(`proof: ${encodedProof}`);
   });
 
 program
