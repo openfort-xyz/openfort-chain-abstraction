@@ -42,8 +42,6 @@ class HashiProverClient {
     schema: z.ZodType<T, z.ZodTypeDef, O>,
     body: object,
   ): Promise<T> {
-    console.log(`body: ${JSON.stringify(body)}`);
-
     const response = await fetch(this.endpoint, {
       method: "POST",
       headers: {
