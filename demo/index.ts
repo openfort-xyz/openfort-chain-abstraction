@@ -375,15 +375,23 @@ program
       toBlock: currentBlock,
     });
 
-    // Note: override log index within the block with transaction log index
-    await Promise.all(
-      logs.map(async (log) => {
-        log.logIndex = await getLogIndex(log.transactionHash, chain);
-      }),
+    // The log indices are used by different provers:
+    // - logIndex: Hashi prover uses the index within the block (returned by default with getLogs)
+    // - transactionLogIndex: Polymer prover uses the index within the transaction (we parse it from the receipt)
+
+    const enhancedLogs = await Promise.all(
+      logs.map(async (log) => ({
+        ...log,
+        transactionLogIndex: await getLogIndex(log.transactionHash, chain),
+      })),
     );
 
     console.log(
-      util.inspect(logs, { showHidden: true, depth: null, colors: true }),
+      util.inspect(enhancedLogs, {
+        showHidden: true,
+        depth: null,
+        colors: true,
+      }),
     );
   });
 

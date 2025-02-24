@@ -40,10 +40,10 @@ export type OpenfortContracts = {
 // Its address is included in the invoice on dest chain, which is used for refunds on the source chains
 // Use the CABPaymasterFactory to have deterministic addresses for each ecosystem
 
-// NOTE: Salt 907 - only deployed on base and polygon to demo Hashi Prover
+// NOTE: Salt 0x907 - only deployed on base and polygon to demo Hashi Prover
 const cabPaymaster = "0x0A68C0766D16aF76bAB3226BB3c46bce3478DF99";
 const polymerPaymasterVerifier = "0xF624A9Ad22D7428ADb35CE790340f43C6fE5f2A2";
-const hashiPaymasterVerifier = "0x1F981f3247096309EAe74b955b31a83416679c7a";
+const hashiPaymasterVerifier = "0xcAeAb7F95D9a42b5DF2fA83e3232efcF65Db5444";
 const invoiceManager = "0x9285C1a617131Ca435db022110971De9255Edd9D";
 
 export const openfortContracts: Record<string, OpenfortContracts> = {
