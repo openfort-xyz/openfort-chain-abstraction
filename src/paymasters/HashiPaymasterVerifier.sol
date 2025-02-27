@@ -37,6 +37,8 @@ import {RLPReader} from "@eth-optimism/contracts-bedrock/src/libraries/rlp/RLPRe
 import {ReceiptProof} from "@hashi/prover/HashiProverStructs.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
+import {LibBytes} from "@solady/utils/LibBytes.sol";
+
 /**
  * @title HashiPaymasterVerifier
  * @notice A contract that can verify invoices emitted on remote chains.
@@ -45,6 +47,7 @@ contract HashiPaymasterVerifier is IPaymasterVerifier, Ownable {
     using LibEncoders for IInvoiceManager.RepayTokenInfo[];
     using RLPReader for RLPReader.RLPItem;
     using RLPReader for bytes;
+    using LibBytes for bytes;
 
     IInvoiceManager public immutable invoiceManager;
     address public immutable shoyuBashi;
@@ -82,14 +85,11 @@ contract HashiPaymasterVerifier is IPaymasterVerifier, Ownable {
 
         if (emitter != address(invoiceManager)) return false;
 
-        bytes memory topics = logFields[1].readBytes();
+        RLPReader.RLPItem[] memory topics = logFields[1].readList();
 
-        assembly {
-            let topic0 := mload(add(topics, 0x20))
-            let topic1 := mload(add(topics, 0x40))
-            // IInvoiceManager.InvoiceCreated.selector
-            let selector := 0x5243d6c5479d93025de9e138a29c467868f762bb78591e96299fb3f437afcc04
-            success := and(eq(topic0, selector), eq(topic1, invoiceId))
-        }
+        bytes memory topic0 = topics[0].readBytes();
+        bytes memory topic1 = topics[1].readBytes();
+
+        success = topic0.eqs(IInvoiceManager.InvoiceCreated.selector) && topic1.eqs(invoiceId);
     }
 }
