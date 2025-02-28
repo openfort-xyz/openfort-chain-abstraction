@@ -5,6 +5,7 @@ libs = ["lib"]
 evm_version = "paris"
 via_ir = true
 gas_reports = ["*"]
+fs_permissions = [{ access = "read", path = "./test/data" }]
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
 
 [profile.ci]

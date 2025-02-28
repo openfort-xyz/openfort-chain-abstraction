@@ -8,7 +8,7 @@ import {
 } from "viem/account-abstraction";
 import {
   openfortContracts,
-  paymasterVerifier,
+  paymasterVerifierAccount,
   supportedChain,
 } from "./constants";
 import {
@@ -40,13 +40,11 @@ export function getPaymasterActions(chain: supportedChain): PaymasterActions {
       const currentBlockTimestamp = await getBlockTimestamp(chain);
       const validAfter = currentBlockTimestamp - 1_000_000n;
       const validUntil = currentBlockTimestamp + 1_000_000n;
-
       const postVerificationGas =
         parameters.paymasterPostOpGasLimit || BigInt(1e5);
       const verificationGasLimit =
         parameters.verificationGasLimit || BigInt(1e5);
       const callGasLimit = parameters.callGasLimit || BigInt(1e5);
-
       const userOp: PackedUserOperation = {
         accountGasLimits: getAccountGasLimits(
           verificationGasLimit,
@@ -73,7 +71,7 @@ export function getPaymasterActions(chain: supportedChain): PaymasterActions {
         verificationGasLimit,
         postVerificationGas,
       );
-      const signature = await paymasterVerifier.signMessage({
+      const signature = await paymasterVerifierAccount.signMessage({
         message: { raw: hash },
       });
 
@@ -84,7 +82,7 @@ export function getPaymasterActions(chain: supportedChain): PaymasterActions {
           : (concat([
               numberToHex(validUntil, { size: 6 }),
               numberToHex(validAfter, { size: 6 }),
-              getRepayTokens(userOp.sender),
+              getRepayTokens(userOp.sender, "polygon"), // DEMO: repay with polygon token
               getSponsorTokens(userOp.sender, chain),
               signature,
             ]) as Hex),
