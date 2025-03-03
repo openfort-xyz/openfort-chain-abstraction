@@ -28,23 +28,33 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
-import {IInvoiceManager} from "../interfaces/IInvoiceManager.sol";
-import {IPaymasterVerifier} from "../interfaces/IPaymasterVerifier.sol";
-import {LibEncoders} from "../libraries/LibEncoders.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {LibBytes} from "@solady/utils/LibBytes.sol";
-import {ICrossL2Prover} from "@vibc-core-smart-contracts/contracts/interfaces/ICrossL2Prover.sol";
+import {IInvoiceManager} from "../../interfaces/IInvoiceManager.sol";
+import {IPaymasterVerifier} from "../../interfaces/IPaymasterVerifier.sol";
+import {LibEncoders} from "../../libraries/LibEncoders.sol";
+import {HashiProverLib} from "@hashi/prover/HashiProverLib.sol";
 
-contract PolymerPaymasterVerifierV1 is IPaymasterVerifier, Ownable {
-    using LibBytes for bytes;
+import {RLPReader} from "@eth-optimism/contracts-bedrock/src/libraries/rlp/RLPReader.sol";
+import {ReceiptProof} from "@hashi/prover/HashiProverStructs.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+
+import {LibBytes} from "@solady/utils/LibBytes.sol";
+
+/**
+ * @title HashiPaymasterVerifier
+ * @notice A contract that can verify invoices emitted on remote chains.
+ */
+contract HashiPaymasterVerifier is IPaymasterVerifier, Ownable {
     using LibEncoders for IInvoiceManager.RepayTokenInfo[];
+    using RLPReader for RLPReader.RLPItem;
+    using RLPReader for bytes;
+    using LibBytes for bytes;
 
     IInvoiceManager public immutable invoiceManager;
-    ICrossL2Prover public immutable crossL2Prover;
+    address public immutable shoyuBashi;
 
-    constructor(IInvoiceManager _invoiceManager, ICrossL2Prover _crossL2Prover, address _owner) Ownable(_owner) {
+    constructor(IInvoiceManager _invoiceManager, address _shoyuBashi, address _owner) Ownable(_owner) {
         invoiceManager = _invoiceManager;
-        crossL2Prover = _crossL2Prover;
+        shoyuBashi = _shoyuBashi;
     }
 
     /// @inheritdoc IPaymasterVerifier
@@ -60,11 +70,26 @@ contract PolymerPaymasterVerifierV1 is IPaymasterVerifier, Ownable {
 
         if (invoiceId != _invoiceId) return false;
 
-        (uint256 logIndex, bytes memory proof) = abi.decode(_proof, (uint256, bytes));
-        (, address emitter, bytes[] memory topics,) = crossL2Prover.validateEvent(logIndex, proof);
+        ReceiptProof calldata proof;
+
+        assembly {
+            proof := add(_proof.offset, 0x20)
+        }
+
+        bytes memory logs = HashiProverLib.verifyForeignEvent(proof, shoyuBashi);
+        RLPReader.RLPItem[] memory logFields = logs.toRLPItem().readList();
+
+        if (logFields.length != 3) revert("Hashi: InvalidLogFormat");
+
+        address emitter = address(bytes20(logFields[0].readBytes()));
 
         if (emitter != address(invoiceManager)) return false;
 
-        success = topics[0].eqs(IInvoiceManager.InvoiceCreated.selector) && topics[1].eqs(invoiceId);
+        RLPReader.RLPItem[] memory topics = logFields[1].readList();
+
+        bytes memory topic0 = topics[0].readBytes();
+        bytes memory topic1 = topics[1].readBytes();
+
+        success = topic0.eqs(IInvoiceManager.InvoiceCreated.selector) && topic1.eqs(invoiceId);
     }
 }

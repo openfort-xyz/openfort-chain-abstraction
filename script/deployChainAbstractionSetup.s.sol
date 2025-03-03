@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IInvoiceManager} from "../src/interfaces/IInvoiceManager.sol";
-import {IVaultManager} from "../src/interfaces/IVaultManager.sol";
+import {IInvoiceManager} from "../contracts/interfaces/IInvoiceManager.sol";
+import {IVaultManager} from "../contracts/interfaces/IVaultManager.sol";
 import {Script, console} from "forge-std/Script.sol";
 
-import {InvoiceManager} from "../src/core/InvoiceManager.sol";
-import {CABPaymaster} from "../src/paymasters/CABPaymaster.sol";
-import {CABPaymasterFactory} from "../src/paymasters/CABPaymasterFactory.sol";
-import {UpgradeableOpenfortProxy} from "../src/proxy/UpgradeableOpenfortProxy.sol";
-import {BaseVault} from "../src/vaults/BaseVault.sol";
-import {VaultManager} from "../src/vaults/VaultManager.sol";
+import {InvoiceManager} from "../contracts/core/InvoiceManager.sol";
+import {CABPaymaster} from "../contracts/paymasters/CABPaymaster.sol";
+import {CABPaymasterFactory} from "../contracts/paymasters/CABPaymasterFactory.sol";
+import {UpgradeableOpenfortProxy} from "../contracts/proxy/UpgradeableOpenfortProxy.sol";
+import {BaseVault} from "../contracts/vaults/BaseVault.sol";
+import {VaultManager} from "../contracts/vaults/VaultManager.sol";
 import {CheckOrDeployEntryPoint} from "./auxiliary/checkOrDeployEntrypoint.sol";
 
 import {DeployHashiPaymasterVerifier} from "./deployHashiPaymasterVerifier.s.sol";

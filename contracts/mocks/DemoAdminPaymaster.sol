@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
-import {BasePaymaster} from "./BasePaymaster.sol";
+import {BasePaymaster} from "../paymasters/BasePaymaster.sol";
 
 import "account-abstraction/core/Helpers.sol";
 import "account-abstraction/interfaces/IEntryPoint.sol";
@@ -10,7 +10,7 @@ import "account-abstraction/interfaces/IEntryPoint.sol";
  * @title DemoAdminPaymaster
  * @dev A paymaster used in DEMO ONLY ON TESTNET to sponsor admin operations such as CABPaymaster registration in the
  *      invoice manager.
- *      IT OBVIOUSLY SHOULD NOT BE USED IN PRODUCTION nor in real e2e tests (yes, people are looking after your free Sepolia)
+ *      IT OBVIOUSLY SHOULD NEVER BE USED IN PRODUCTION nor in real e2e tests (yes, people are looking after your free Sepolia)
  */
 contract DemoAdminPaymaster is BasePaymaster {
     address public constant ENTRY_POINT_V7 = 0x0000000071727De22E5E9d8BAf0edAc6f37da032;
