@@ -1,11 +1,12 @@
 [profile.default]
-src = "src"
+src = "contracts"
 out = "out"
 libs = ["lib"]
 evm_version = "paris"
 via_ir = true
 gas_reports = ["*"]
 fs_permissions = [{ access = "read", path = "./test/data" }]
+
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
 
 [profile.ci]
@@ -15,3 +16,6 @@ ignored_error_codes = [5667, 5574]
 line_length = 130
 sort_imports = true
 single_line_statement_blocks = "single"
+
+# Exclude directories from coverage reports
+coverage_exclude = ["src/test/*", "src/mocks/*"]

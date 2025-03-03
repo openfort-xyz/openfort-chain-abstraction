@@ -1,36 +1,36 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {InvoiceManager} from "../src/core/InvoiceManager.sol";
+import {InvoiceManager} from "../contracts/core/InvoiceManager.sol";
 
-import {IInvoiceManager} from "../src/interfaces/IInvoiceManager.sol";
+import {IInvoiceManager} from "../contracts/interfaces/IInvoiceManager.sol";
 
-import {IPaymasterVerifier} from "../src/interfaces/IPaymasterVerifier.sol";
-import {IVault} from "../src/interfaces/IVault.sol";
-import {IVaultManager} from "../src/interfaces/IVaultManager.sol";
+import {IPaymasterVerifier} from "../contracts/interfaces/IPaymasterVerifier.sol";
+import {IVault} from "../contracts/interfaces/IVault.sol";
+import {IVaultManager} from "../contracts/interfaces/IVaultManager.sol";
 
-import {MockCrossL2Prover} from "../src/mocks/MockCrossL2Prover.sol";
-import {MockERC20} from "../src/mocks/MockERC20.sol";
-import {IMockInvoiceManager} from "../src/mocks/MockInvoiceManager.sol";
-import {MockShoyuBashi} from "../src/mocks/MockShoyuBashi.sol";
-import {CABPaymaster} from "../src/paymasters/CABPaymaster.sol";
-import {HashiPaymasterVerifier} from "../src/paymasters/HashiPaymasterVerifier.sol";
-import {PolymerPaymasterVerifierV1} from "../src/paymasters/PolymerPaymasterVerifierV1.sol";
-import {PolymerPaymasterVerifierV2} from "../src/paymasters/PolymerPaymasterVerifierV2.sol";
-import {UpgradeableOpenfortProxy} from "../src/proxy/UpgradeableOpenfortProxy.sol";
-import {BaseVault} from "../src/vaults/BaseVault.sol";
-import {VaultManager} from "../src/vaults/VaultManager.sol";
+import {MockCrossL2Prover} from "../contracts/mocks/MockCrossL2Prover.sol";
+import {MockERC20} from "../contracts/mocks/MockERC20.sol";
+import {IMockInvoiceManager} from "../contracts/mocks/MockInvoiceManager.sol";
+import {MockShoyuBashi} from "../contracts/mocks/MockShoyuBashi.sol";
+import {CABPaymaster} from "../contracts/paymasters/CABPaymaster.sol";
+import {HashiPaymasterVerifier} from "../contracts/paymasters/verifiers/HashiPaymasterVerifier.sol";
+import {PolymerPaymasterVerifierV1} from "../contracts/paymasters/verifiers/PolymerPaymasterVerifierV1.sol";
+import {PolymerPaymasterVerifierV2} from "../contracts/paymasters/verifiers/PolymerPaymasterVerifierV2.sol";
+import {UpgradeableOpenfortProxy} from "../contracts/proxy/UpgradeableOpenfortProxy.sol";
+import {BaseVault} from "../contracts/vaults/BaseVault.sol";
+import {VaultManager} from "../contracts/vaults/VaultManager.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {ICrossL2Prover} from "@vibc-core-smart-contracts/contracts/interfaces/ICrossL2Prover.sol";
 
-import {ICrossL2ProverV2} from "../src/interfaces/ICrossL2ProverV2.sol";
+import {ICrossL2ProverV2} from "../contracts/interfaces/ICrossL2ProverV2.sol";
 import {PackedUserOperation} from "account-abstraction/core/UserOperationLib.sol";
 import {IPaymaster} from "account-abstraction/interfaces/IPaymaster.sol";
 
-import {MockInvoiceManager} from "../src/mocks/MockInvoiceManager.sol";
+import {MockInvoiceManager} from "../contracts/mocks/MockInvoiceManager.sol";
 
 import {stdJson} from "forge-std/StdJson.sol";
 import {Test} from "forge-std/Test.sol";
@@ -105,7 +105,11 @@ contract CABPaymasterTest is Test {
         );
 
         invoiceManager.initialize(owner, IVaultManager(address(vaultManager)));
+
+        // NOTE: testing with mocked crossL2ProverV1 (real is deprecated)
+        // gas report will not reflect the real cost of proving with polymerV1
         crossL2ProverV1 = ICrossL2Prover(address(new MockCrossL2Prover(address(invoiceManager))));
+        // NOTE: testing with real crossL2ProverV2
         crossL2ProverV2 = ICrossL2ProverV2(0xcDa03d74DEc5B24071D1799899B2e0653C24e5Fa);
 
         // Initialize the supportedTokens array
