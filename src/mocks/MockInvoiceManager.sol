@@ -5,9 +5,19 @@ import {IInvoiceManager} from "../interfaces/IInvoiceManager.sol";
 import {IPaymasterVerifier} from "../interfaces/IPaymasterVerifier.sol";
 import {IVault} from "../interfaces/IVault.sol";
 
-contract MockInvoiceManager is IInvoiceManager {
+interface IMockInvoiceManager is IInvoiceManager {
+    function setInvoiceId(bytes32 _invoiceId) external;
+}
+
+contract MockInvoiceManager is IMockInvoiceManager {
+    bytes32 public invoiceId;
+
+    function setInvoiceId(bytes32 _invoiceId) external {
+        invoiceId = _invoiceId;
+    }
+
     function getInvoiceId(address, address, uint256, uint256, bytes calldata) external view returns (bytes32) {
-        return 0x6f662367c1c8c75c2bd3494c5b0338a59cd67fe855e0c298cd875420ccf403ff;
+        return invoiceId;
     }
 
     function getCABPaymaster(address) external view returns (CABPaymaster memory) {

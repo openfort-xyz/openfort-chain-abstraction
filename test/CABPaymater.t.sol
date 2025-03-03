@@ -11,10 +11,12 @@ import {IVaultManager} from "../src/interfaces/IVaultManager.sol";
 
 import {MockCrossL2Prover} from "../src/mocks/MockCrossL2Prover.sol";
 import {MockERC20} from "../src/mocks/MockERC20.sol";
+import {IMockInvoiceManager} from "../src/mocks/MockInvoiceManager.sol";
 import {MockShoyuBashi} from "../src/mocks/MockShoyuBashi.sol";
 import {CABPaymaster} from "../src/paymasters/CABPaymaster.sol";
 import {HashiPaymasterVerifier} from "../src/paymasters/HashiPaymasterVerifier.sol";
 import {PolymerPaymasterVerifierV1} from "../src/paymasters/PolymerPaymasterVerifierV1.sol";
+import {PolymerPaymasterVerifierV2} from "../src/paymasters/PolymerPaymasterVerifierV2.sol";
 import {UpgradeableOpenfortProxy} from "../src/proxy/UpgradeableOpenfortProxy.sol";
 import {BaseVault} from "../src/vaults/BaseVault.sol";
 import {VaultManager} from "../src/vaults/VaultManager.sol";
@@ -23,6 +25,8 @@ import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/Messa
 
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {ICrossL2Prover} from "@vibc-core-smart-contracts/contracts/interfaces/ICrossL2Prover.sol";
+
+import {ICrossL2ProverV2} from "../src/interfaces/ICrossL2ProverV2.sol";
 import {PackedUserOperation} from "account-abstraction/core/UserOperationLib.sol";
 import {IPaymaster} from "account-abstraction/interfaces/IPaymaster.sol";
 
@@ -41,8 +45,10 @@ contract CABPaymasterTest is Test {
     CABPaymaster public paymaster;
     InvoiceManager public invoiceManager;
     VaultManager public vaultManager;
-    ICrossL2Prover public crossL2Prover;
-    PolymerPaymasterVerifierV1 public polymerPaymasterVerifier;
+    ICrossL2Prover public crossL2ProverV1;
+    ICrossL2ProverV2 public crossL2ProverV2;
+    PolymerPaymasterVerifierV1 public polymerPaymasterVerifierV1;
+    PolymerPaymasterVerifierV2 public polymerPaymasterVerifierV2;
     BaseVault public openfortVault;
     MockERC20 public mockERC20;
 
@@ -53,19 +59,31 @@ contract CABPaymasterTest is Test {
 
     address public constant NATIVE_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     address public constant ENTRY_POINT_V7 = 0x0000000071727De22E5E9d8BAf0edAc6f37da032;
+    address public constant REAL_INVOICE_MANAGER = 0x9285C1a617131Ca435db022110971De9255Edd9D;
 
     string proofs;
 
+    function setupEnvironment() internal {
+        uint256 forkId = vm.createFork("https://sepolia.optimism.io");
+        vm.selectFork(forkId);
+    }
+
     function setUp() public {
+        setupEnvironment();
+
         proofs = vm.readFile(string.concat(vm.projectRoot(), "/test/data/Proofs.json"));
-        owner = address(1);
-        rekt = address(0x9590Ed0C18190a310f4e93CAccc4CC17270bED40);
+
+        owner = makeAddr("LAZARUS");
+        rekt = makeAddr("REKT");
 
         verifyingSignerPrivateKey = uint256(keccak256(abi.encodePacked("VERIFIYING_SIGNER")));
         verifyingSignerAddress = vm.addr(verifyingSignerPrivateKey);
         vm.label(verifyingSignerAddress, "VERIFIYING_SIGNER");
 
         invoiceManager = InvoiceManager(payable(new UpgradeableOpenfortProxy(address(new InvoiceManager()), "")));
+
+        MockInvoiceManager mockInvoiceManager = new MockInvoiceManager();
+        vm.etch(REAL_INVOICE_MANAGER, address(mockInvoiceManager).code);
 
         vaultManager = VaultManager(
             payable(
@@ -87,7 +105,8 @@ contract CABPaymasterTest is Test {
         );
 
         invoiceManager.initialize(owner, IVaultManager(address(vaultManager)));
-        crossL2Prover = ICrossL2Prover(address(new MockCrossL2Prover(address(invoiceManager))));
+        crossL2ProverV1 = ICrossL2Prover(address(new MockCrossL2Prover(address(invoiceManager))));
+        crossL2ProverV2 = ICrossL2ProverV2(0xcDa03d74DEc5B24071D1799899B2e0653C24e5Fa);
 
         // Initialize the supportedTokens array
         address[] memory supportedTokens = new address[](2);
@@ -104,9 +123,11 @@ contract CABPaymasterTest is Test {
 
         vm.startPrank(rekt);
 
-        polymerPaymasterVerifier = new PolymerPaymasterVerifierV1(invoiceManager, crossL2Prover, owner);
+        polymerPaymasterVerifierV1 = new PolymerPaymasterVerifierV1(invoiceManager, crossL2ProverV1, owner);
+        polymerPaymasterVerifierV2 = new PolymerPaymasterVerifierV2(IInvoiceManager(REAL_INVOICE_MANAGER), crossL2ProverV2, owner);
+
         invoiceManager.registerPaymaster(
-            address(paymaster), IPaymasterVerifier(address(polymerPaymasterVerifier)), block.timestamp + 100000
+            address(paymaster), IPaymasterVerifier(address(polymerPaymasterVerifierV1)), block.timestamp + 100000
         );
     }
 
@@ -342,7 +363,7 @@ contract CABPaymasterTest is Test {
         assertEq(computedInvoiceId, expectedInvoiceId, "Invoice ID computation mismatch");
     }
 
-    function testVerifyInvoiceWithPolymerV1() public {
+    function testVerifyInvoiceWithMockedPolymerV1() public {
         bytes32 invoiceId = 0x28a285ad4af66f8b864972de6e0ea1095667e73ade7db3d93151c0c266022905;
         bytes memory proof = getPolymerV1Proof(proofs);
         IInvoiceManager.RepayTokenInfo[] memory repayTokens = new IInvoiceManager.RepayTokenInfo[](1);
@@ -358,23 +379,19 @@ contract CABPaymasterTest is Test {
             sponsorChainId: 84532,
             repayTokenInfos: repayTokens
         });
-        assert(polymerPaymasterVerifier.verifyInvoice(invoiceId, invoice, proof));
+        assert(polymerPaymasterVerifierV1.verifyInvoice(invoiceId, invoice, proof));
     }
 
     function testVerifyInvoiceWithHashi() public {
         MockShoyuBashi shoyuBashi = new MockShoyuBashi();
 
         bytes32 invoiceId = 0x6f662367c1c8c75c2bd3494c5b0338a59cd67fe855e0c298cd875420ccf403ff;
+        IMockInvoiceManager(REAL_INVOICE_MANAGER).setInvoiceId(invoiceId);
+
         bytes memory proof = getHashiProof(proofs);
 
-        // Deploy the mockInvoiceManager at the real address
-        // to verifyInvoice with Hashi e2e
-        MockInvoiceManager mockInvoiceManager = new MockInvoiceManager();
-        address realInvoiceManager = 0x9285C1a617131Ca435db022110971De9255Edd9D;
-        vm.etch(realInvoiceManager, address(mockInvoiceManager).code);
-
         HashiPaymasterVerifier paymasterVerifier =
-            new HashiPaymasterVerifier(IInvoiceManager(realInvoiceManager), address(shoyuBashi), owner);
+            new HashiPaymasterVerifier(IInvoiceManager(REAL_INVOICE_MANAGER), address(shoyuBashi), owner);
 
         IInvoiceManager.RepayTokenInfo[] memory repayTokens = new IInvoiceManager.RepayTokenInfo[](1);
         repayTokens[0] = IInvoiceManager.RepayTokenInfo({
@@ -393,6 +410,26 @@ contract CABPaymasterTest is Test {
         assert(paymasterVerifier.verifyInvoice(invoiceId, invoice, proof));
     }
 
+    function testVerifyInvoiceWithPolymerV2() public {
+        bytes32 invoiceId = 0x798fe36884434dd033665b5a7fd4853b9c60465c11067aea32d885843ba6e7ab;
+        IMockInvoiceManager(REAL_INVOICE_MANAGER).setInvoiceId(invoiceId);
+        bytes memory proof = getPolymerV2Proof(proofs);
+        IInvoiceManager.RepayTokenInfo[] memory repayTokens = new IInvoiceManager.RepayTokenInfo[](1);
+        repayTokens[0] = IInvoiceManager.RepayTokenInfo({
+            vault: IVault(0x7C1186b3831ce768E93047402EA06FD31b6f0e4B),
+            amount: 500,
+            chainId: 80002
+        });
+        IInvoiceManager.InvoiceWithRepayTokens memory invoice = IInvoiceManager.InvoiceWithRepayTokens({
+            account: 0x80Bc8b46069EcA6E4bb3D80E8dF8bA469eDbfA39,
+            nonce: 32115631112891478964629376335872,
+            paymaster: 0x0A68C0766D16aF76bAB3226BB3c46bce3478DF99,
+            sponsorChainId: 84532,
+            repayTokenInfos: repayTokens
+        });
+        assert(polymerPaymasterVerifierV2.verifyInvoice(invoiceId, invoice, proof));
+    }
+
     function testCABPaymasterRagequit() public {
         vm.deal(address(paymaster), 1 ether);
 
@@ -409,11 +446,15 @@ contract CABPaymasterTest is Test {
         assertEq(owner.balance, 1 ether);
     }
 
-    function getPolymerV1Proof(string memory proofs) internal view returns (bytes memory) {
+    function getPolymerV1Proof(string memory proofs) internal pure returns (bytes memory) {
         return proofs.readBytes(".polymerV1");
     }
 
-    function getHashiProof(string memory proofs) internal view returns (bytes memory) {
+    function getPolymerV2Proof(string memory proofs) internal pure returns (bytes memory) {
+        return proofs.readBytes(".polymerV2");
+    }
+
+    function getHashiProof(string memory proofs) internal pure returns (bytes memory) {
         return proofs.readBytes(".hashi");
     }
 }
