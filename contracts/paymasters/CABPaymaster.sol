@@ -149,9 +149,11 @@ contract CABPaymaster is BasePaymaster, Initializable {
             parseSponsorTokenData(sponsorTokenData);
         for (uint8 i = 0; i < sponsorTokenLength;) {
             address token = sponsorTokens[i].token;
+
             if (token != LibTokens.NATIVE_TOKEN) {
                 require(IERC20(token).approve(sponsorTokens[i].spender, 0), "CABPaymaster: Reset approval failed");
             }
+
             unchecked {
                 ++i;
             }

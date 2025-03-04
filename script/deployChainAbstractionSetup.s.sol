@@ -6,6 +6,8 @@ import {IVaultManager} from "../contracts/interfaces/IVaultManager.sol";
 import {Script, console} from "forge-std/Script.sol";
 
 import {InvoiceManager} from "../contracts/core/InvoiceManager.sol";
+import {IPaymasterVerifier} from "../contracts/interfaces/IPaymasterVerifier.sol";
+
 import {CABPaymaster} from "../contracts/paymasters/CABPaymaster.sol";
 import {CABPaymasterFactory} from "../contracts/paymasters/CABPaymasterFactory.sol";
 import {UpgradeableOpenfortProxy} from "../contracts/proxy/UpgradeableOpenfortProxy.sol";
@@ -58,7 +60,9 @@ contract DeployChainAbstractionSetup is
         );
 
         console.log("VaultManager Address", address(vaultManager));
-        invoiceManager.initialize(owner, IVaultManager(address(vaultManager)));
+
+        IPaymasterVerifier hashiPaymasterVerifier = deployHashiPaymasterVerifier(address(invoiceManager), owner, versionSalt);
+        invoiceManager.initialize(owner, IVaultManager(address(vaultManager)), hashiPaymasterVerifier);
 
         for (uint256 i = 0; i < tokens.length; i++) {
             address token = tokens[i];
@@ -85,7 +89,6 @@ contract DeployChainAbstractionSetup is
         console.log("Paymaster Address", address(paymaster));
 
         deployPolymerPaymasterVerifier(address(invoiceManager), owner, versionSalt);
-        deployHashiPaymasterVerifier(address(invoiceManager), owner, versionSalt);
 
         vm.stopBroadcast();
     }

@@ -40,6 +40,10 @@ contract MockInvoiceManager is IMockInvoiceManager {
         revert("Not implemented");
     }
 
+    function fallbackRepay(bytes32, InvoiceWithRepayTokens calldata, bytes calldata) external {
+        revert("Not implemented");
+    }
+
     function withdrawToAccount(address, IVault[] calldata, uint256[] calldata) external {
         revert("Not implemented");
     }
