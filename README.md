@@ -50,18 +50,21 @@ The Paymaster contract will get repaid on the source chain(s). Ni1o: user has 10
 Paymaster Owner can subscribe to webhook alerts when the Paymaster balance falls below a certain threshold, before automatic rebalancing is implemented.
 
 ### Paymaster Verifiers
-- Permissionless verification of remote event (`InvoiceCreated`) or storage proof (`invoices` mapping in the invoiceManager)
+- Permissionless verification of remote event (`InvoiceCreated`) or storage proof (`invoices` mapping in the `invoiceManager`)
 - Permissionless verification of invoice
 
 As part of chain abstraction activation, an account registers a Paymaster Verifier, which is subsequently called by the InvoiceManager before processing repayments.
 
-One of the system's key strengths is its modular approach to proof verification. State proofs will play a crucial role in Ethereum interoperability, with more proof providers emerging. The design allows for seamless integration of new proof verification strategies, giving advanced users the flexibility to choose the one that best suits their use case.
 
 ## Trust assumptions
 
 - The system relies on cross-L2 execution proofs currently provided by [Polymer](https://docs.polymerlabs.org/docs/build/examples/chain_abstraction/). This eliminates the need for Users to trust Openfort or the Ecosystem. To repay the ecosystem on the source chain(s) from the user assets locked in the vault(s), Openfort must prove the execution of the userOp on the destination chain. There is no refund on source chain without the corresponding remote chain execution proof. The `InvoiceManager` tracks invoices onchain to prevent double-refund.
 - The system supports [Hashi](https://crosschain-alliance.gitbook.io/hashi/introduction/what-is-hashi) as a fallback proving mechanism if Polymer or Openfort cease operations. Liquidity providers (LPs) can generate a proof for their fronted funds by running a [Hashi RPC API locally](https://github.com/gnosis/hashi/tree/main/packages/rpc#getting-started) and call the `fallbackRepay` function of the `InvoiceManager` with the proof and the invoice. This enables refunds using only public data, without relying on any third party. The fallback proving strategy may evolve, but it will always remain permissionless, as it ultimately determines the system's security.
 - Openfort does not have custody of funds in the Ecosystem Paymaster, as the userOp is co-signed within a secure enclave that enforces predefined policies set by the ecosystem. At any time, the ecosystem can disable a signer, immediately preventing any new userOp from being sent.
+
+One of the system's key strengths is its modular approach to proof verification. State proofs will play a crucial role in Ethereum interoperability, with more proof providers emerging. The design allows for seamless integration of new proof verification strategies, giving advanced users the flexibility to choose the one that best suits their use case. With Polymer you get cheap and extremely fast proofs but you trust the sequencers, with Hashi you leverage multiple independent oracles to validate and verify block headers across different blockchain networks.
+
+![gas cost benchmark](./assets/benchmark.jpg)
 
 ## Deployments
 
