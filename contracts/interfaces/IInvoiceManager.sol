@@ -96,12 +96,20 @@ interface IInvoiceManager {
     function createInvoice(uint256 nonce, address paymaster, bytes32 invoiceId) external;
 
     /**
-     * @notice Repay the invoice.
+     * @notice Verify proof and repay the invoice.
      * @param invoiceId The ID of the invoice.
      * @param invoice The invoice to repay.
      * @param proof The proof of the repayment.
      */
     function repay(bytes32 invoiceId, InvoiceWithRepayTokens calldata invoice, bytes calldata proof) external;
+
+    /**
+     * @notice Verify proof with the fallback verifier and repay the invoice.
+     * @param invoiceId The ID of the invoice.
+     * @param invoice The invoice to repay.
+     * @param proof The proof of the repayment.
+     */
+    function fallbackRepay(bytes32 invoiceId, InvoiceWithRepayTokens calldata invoice, bytes calldata proof) external;
 
     /**
      * @notice Withdraw the locked tokens to the account.

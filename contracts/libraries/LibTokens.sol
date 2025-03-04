@@ -61,6 +61,7 @@ library LibTokens {
     }
 
     function frontToken(address token, address recipient, uint256 amount) internal {
+        //require(store.supported[token], "TokenManager: token not supported");
         // NOTE: use forceApprove to support tokens that require the approval
         // to be set to zero before setting it to a non-zero value, such as USDT.
         token == NATIVE_TOKEN ? _transferNative(recipient, amount) : IERC20(token).forceApprove(recipient, amount);

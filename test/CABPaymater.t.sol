@@ -33,7 +33,7 @@ import {IPaymaster} from "account-abstraction/interfaces/IPaymaster.sol";
 import {MockInvoiceManager} from "../contracts/mocks/MockInvoiceManager.sol";
 
 import {stdJson} from "forge-std/StdJson.sol";
-import {Test} from "forge-std/Test.sol";
+import {Test, console} from "forge-std/Test.sol";
 
 contract CABPaymasterTest is Test {
     using stdJson for string;
@@ -104,12 +104,11 @@ contract CABPaymasterTest is Test {
             )
         );
 
-        invoiceManager.initialize(owner, IVaultManager(address(vaultManager)));
-
         // NOTE: testing with mocked crossL2ProverV1 (real is deprecated)
         // gas report will not reflect the real cost of proving with polymerV1
         crossL2ProverV1 = ICrossL2Prover(address(new MockCrossL2Prover(address(invoiceManager))));
         // NOTE: testing with real crossL2ProverV2
+        // https://docs.polymerlabs.org/docs/build/start
         crossL2ProverV2 = ICrossL2ProverV2(0xcDa03d74DEc5B24071D1799899B2e0653C24e5Fa);
 
         // Initialize the supportedTokens array
@@ -122,13 +121,18 @@ contract CABPaymasterTest is Test {
 
         mockERC20.mint(address(paymaster), PAYMASTER_BASE_MOCK_ERC20_BALANCE);
 
-        assertEq(address(invoiceManager.vaultManager()), address(vaultManager));
         assertEq(address(vaultManager.invoiceManager()), address(invoiceManager));
 
         vm.startPrank(rekt);
 
         polymerPaymasterVerifierV1 = new PolymerPaymasterVerifierV1(invoiceManager, crossL2ProverV1, owner);
         polymerPaymasterVerifierV2 = new PolymerPaymasterVerifierV2(IInvoiceManager(REAL_INVOICE_MANAGER), crossL2ProverV2, owner);
+
+        invoiceManager.initialize(
+            owner, IVaultManager(address(vaultManager)), IPaymasterVerifier(address(polymerPaymasterVerifierV2))
+        );
+
+        assertEq(address(invoiceManager.vaultManager()), address(vaultManager));
 
         invoiceManager.registerPaymaster(
             address(paymaster), IPaymasterVerifier(address(polymerPaymasterVerifierV1)), block.timestamp + 100000
@@ -341,8 +345,6 @@ contract CABPaymasterTest is Test {
         bytes32 expectedInvoiceId =
             invoiceManager.getInvoiceId(rekt, address(paymaster), userOp.nonce, BASE_SEPOLIA_CHAIN_ID, repayTokensBytes);
 
-        // don't know why comparison of paymaster address fails
-        // even though it's the same address
         vm.expectEmit(true, true, true, false);
         emit IInvoiceManager.InvoiceCreated(expectedInvoiceId, rekt, address(paymaster));
         paymaster.postOp(IPaymaster.PostOpMode.opSucceeded, context, 1222, 42);

@@ -42,6 +42,8 @@ import {IVaultManager} from "../interfaces/IVaultManager.sol";
 contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgradeable, IInvoiceManager {
     IVaultManager public vaultManager;
 
+    IPaymasterVerifier public fallbackPaymasterVerifier;
+
     /// @notice Settlememt storage location used as the base for the invoices mapping following EIP-7201.
     // keccak256(abi.encode(uint256(keccak256(bytes("Dialy"))) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant SETTLEMENT_STORAGE_LOCATION = 0x1574f0d0c24265911bc4961cda61aadd6e06faacad4bf42a2f89fb53fed1c800;
@@ -62,17 +64,22 @@ contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardU
         _disableInitializers();
     }
 
-    function initialize(address initialOwner, IVaultManager _vaultManager) public virtual initializer {
+    function initialize(address initialOwner, IVaultManager _vaultManager, IPaymasterVerifier _fallbackPaymasterVerifier)
+        public
+        virtual
+        initializer
+    {
         __Ownable_init(initialOwner);
         __ReentrancyGuard_init();
 
         vaultManager = _vaultManager;
+        fallbackPaymasterVerifier = _fallbackPaymasterVerifier;
     }
 
     function _authorizeUpgrade(address) internal override onlyOwner {}
 
     modifier onlyPaymaster(address account) {
-        require(cabPaymasters[account].paymaster == msg.sender, "InvoiceManager: caller is not the paymaster");
+        require(cabPaymasters[account].paymaster == msg.sender, "InvoiceManager: unauthorized paymaster");
         _;
     }
 
@@ -119,14 +126,23 @@ contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardU
         require(!isInvoiceRepaid[invoiceId], "InvoiceManager: invoice already repaid");
 
         bool isVerified = paymasterVerifier.verifyInvoice(invoiceId, invoice, proof);
-
         if (!isVerified) revert("InvoiceManager: invalid invoice");
-        (IVault[] memory vaults, uint256[] memory amounts) = _getRepayToken(invoice);
 
-        isInvoiceRepaid[invoiceId] = true;
-        vaultManager.withdrawSponsorToken(invoice.account, vaults, amounts, invoice.paymaster);
+        _repay(invoiceId, invoice);
+    }
 
-        emit InvoiceRepaid(invoiceId, invoice.account, invoice.paymaster);
+    /// @inheritdoc IInvoiceManager
+    function fallbackRepay(bytes32 invoiceId, InvoiceWithRepayTokens calldata invoice, bytes calldata proof)
+        external
+        override
+        nonReentrant
+    {
+        require(!isInvoiceRepaid[invoiceId], "InvoiceManager: invoice already repaid");
+
+        bool isVerified = fallbackPaymasterVerifier.verifyInvoice(invoiceId, invoice, proof);
+        if (!isVerified) revert("InvoiceManager: invalid invoice");
+
+        _repay(invoiceId, invoice);
     }
 
     /// @inheritdoc IInvoiceManager
@@ -191,5 +207,14 @@ contract InvoiceManager is UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardU
         assembly {
             $.slot := SETTLEMENT_STORAGE_LOCATION
         }
+    }
+
+    function _repay(bytes32 invoiceId, InvoiceWithRepayTokens calldata invoice) internal {
+        (IVault[] memory vaults, uint256[] memory amounts) = _getRepayToken(invoice);
+
+        isInvoiceRepaid[invoiceId] = true;
+        vaultManager.withdrawSponsorToken(invoice.account, vaults, amounts, invoice.paymaster);
+
+        emit InvoiceRepaid(invoiceId, invoice.account, invoice.paymaster);
     }
 }
