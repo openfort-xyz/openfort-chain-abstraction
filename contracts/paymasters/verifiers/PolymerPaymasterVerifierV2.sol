@@ -28,13 +28,13 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
-import {IPaymasterVerifier} from "../interfaces/IPaymasterVerifier.sol";
+import {IPaymasterVerifier} from "../../interfaces/IPaymasterVerifier.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-import {ICrossL2ProverV2} from "../interfaces/ICrossL2ProverV2.sol";
-import {IInvoiceManager} from "../interfaces/IInvoiceManager.sol";
+import {ICrossL2ProverV2} from "../../interfaces/ICrossL2ProverV2.sol";
+import {IInvoiceManager} from "../../interfaces/IInvoiceManager.sol";
 
-import {LibEncoders} from "../libraries/LibEncoders.sol";
+import {LibEncoders} from "../../libraries/LibEncoders.sol";
 
 /**
  * @title PolymerPaymasterVerifierV2
