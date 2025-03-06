@@ -371,7 +371,7 @@ contract CABPaymasterTest is Test {
 
     function testVerifyInvoiceWithMockedPolymerV1() public {
         bytes32 invoiceId = 0x28a285ad4af66f8b864972de6e0ea1095667e73ade7db3d93151c0c266022905;
-        bytes memory proof = getPolymerV1Proof(proofs);
+        bytes memory proof = getPolymerV1Proof();
         IInvoiceManager.RepayTokenInfo[] memory repayTokens = new IInvoiceManager.RepayTokenInfo[](1);
         repayTokens[0] = IInvoiceManager.RepayTokenInfo({
             vault: IVault(0xaF45f62eB99AD2091440336ca714B21F06525978),
@@ -394,7 +394,7 @@ contract CABPaymasterTest is Test {
         bytes32 invoiceId = 0x6f662367c1c8c75c2bd3494c5b0338a59cd67fe855e0c298cd875420ccf403ff;
         IMockInvoiceManager(REAL_INVOICE_MANAGER).setInvoiceId(invoiceId);
 
-        bytes memory proof = getHashiProof(proofs);
+        bytes memory proof = getHashiProof();
 
         HashiPaymasterVerifier paymasterVerifier =
             new HashiPaymasterVerifier(IInvoiceManager(REAL_INVOICE_MANAGER), address(shoyuBashi), owner);
@@ -419,7 +419,7 @@ contract CABPaymasterTest is Test {
     function testVerifyInvoiceWithPolymerV2() public {
         bytes32 invoiceId = 0x798fe36884434dd033665b5a7fd4853b9c60465c11067aea32d885843ba6e7ab;
         IMockInvoiceManager(REAL_INVOICE_MANAGER).setInvoiceId(invoiceId);
-        bytes memory proof = getPolymerV2Proof(proofs);
+        bytes memory proof = getPolymerV2Proof();
         IInvoiceManager.RepayTokenInfo[] memory repayTokens = new IInvoiceManager.RepayTokenInfo[](1);
         repayTokens[0] = IInvoiceManager.RepayTokenInfo({
             vault: IVault(0x7C1186b3831ce768E93047402EA06FD31b6f0e4B),
@@ -452,15 +452,15 @@ contract CABPaymasterTest is Test {
         assertEq(owner.balance, 1 ether);
     }
 
-    function getPolymerV1Proof(string memory proofs) internal pure returns (bytes memory) {
+    function getPolymerV1Proof() internal view returns (bytes memory) {
         return proofs.readBytes(".polymerV1");
     }
 
-    function getPolymerV2Proof(string memory proofs) internal pure returns (bytes memory) {
+    function getPolymerV2Proof() internal view returns (bytes memory) {
         return proofs.readBytes(".polymerV2");
     }
 
-    function getHashiProof(string memory proofs) internal pure returns (bytes memory) {
+    function getHashiProof() internal view returns (bytes memory) {
         return proofs.readBytes(".hashi");
     }
 }
