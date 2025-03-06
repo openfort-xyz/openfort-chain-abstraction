@@ -40,11 +40,11 @@ export type OpenfortContracts = {
 // Its address is included in the invoice on dest chain, which is used for refunds on the source chains
 // Use the CABPaymasterFactory to have deterministic addresses for each ecosystem
 
-// NOTE: Salt 0x907 - only deployed on base and polygon to demo Hashi Prover
-const cabPaymaster = "0x0A68C0766D16aF76bAB3226BB3c46bce3478DF99";
-const polymerPaymasterVerifier = "0xF624A9Ad22D7428ADb35CE790340f43C6fE5f2A2";
-const hashiPaymasterVerifier = "0xcAeAb7F95D9a42b5DF2fA83e3232efcF65Db5444";
-const invoiceManager = "0x9285C1a617131Ca435db022110971De9255Edd9D";
+// NOTE: Salt 0x0603202500000000000000000000000000000000000000000000000000000000
+const cabPaymaster = "0xE45BC02340CA4197cfC9578e5BBa3B80b4e4C2d4";
+const polymerPaymasterVerifier = "0x230156A2282CA96f1234a387561E4cE13912F5eC";
+const hashiPaymasterVerifier = "0x40E8340A47CFF4E98bB209586C73239064961550";
+const invoiceManager = "0x9dCe39E65DD581195bf721F96026F0bC31e32De9";
 
 export const openfortContracts: Record<string, OpenfortContracts> = {
   base: {
@@ -53,12 +53,12 @@ export const openfortContracts: Record<string, OpenfortContracts> = {
     polymerPaymasterVerifier: polymerPaymasterVerifier,
     hashiPaymasterVerifier: hashiPaymasterVerifier,
     invoiceManager: invoiceManager,
-    vaultManager: "0x5f8B5EF192e60D7c01D6F4c1c31dC191EE0E2063",
+    vaultManager: "0x62524025da23977CF05FB6a541d5307468Cc7265",
     vaults: {
       "0xfF3311cd15aB091B00421B23BcB60df02EFD8db7":
-        "0x3871Ab9265B096a18fa682982B9E058324F3Af60",
+        "0x591686fF602f793474ecCe78eb9C404Caf35A8B1",
       "0xa9a0179e045cF39C5F4d914583dc3648DfBDeeF1":
-        "0x2E5152910b6b8f4aFED6193843C5AD1eD731adc5",
+        "0xAcbC844958247469bEAe27Df0fe0cf34F1e2bFFD",
     },
   },
   optimism: {
@@ -67,12 +67,12 @@ export const openfortContracts: Record<string, OpenfortContracts> = {
     polymerPaymasterVerifier: polymerPaymasterVerifier,
     hashiPaymasterVerifier: hashiPaymasterVerifier,
     invoiceManager: invoiceManager,
-    vaultManager: "0x9b93C1a32E78edaBC078911505B7666Df9DF3bB7",
+    vaultManager: "0xf864A6A98646a7A91e6dC1731309DD4638AaB290",
     vaults: {
       "0x2522F4Fc9aF2E1954a3D13f7a5B2683A00a4543A":
-        "0x593a9fa6Cd8077FE806e23834a5C59a78CAb5719",
+        "0x18413032138DE0E4ef6A0643eCb1DcE514fc0365",
       "0xd926e338e047aF920F59390fF98A3114CCDcab4a":
-        "0xf36f0F59Bc79de809cEf3E3B86BD4759Fc1e0C55",
+        "0x49b94c5ceFF0ab7d632eDf8Fcd778F362602A92b",
     },
   },
   mantle: {
@@ -81,12 +81,12 @@ export const openfortContracts: Record<string, OpenfortContracts> = {
     polymerPaymasterVerifier: polymerPaymasterVerifier,
     hashiPaymasterVerifier: hashiPaymasterVerifier,
     invoiceManager: invoiceManager,
-    vaultManager: "0xE295199e935925658A97F5f0cAb5fE069305ea57",
+    vaultManager: "0xB19f2fbB613Dc6d43A04f5326baE90DF653A0DEa",
     vaults: {
       "0x4855090BbFf14397E1d48C9f4Cd7F111618F071a":
-        "0x28E768F281C2Bc46889EE412e86Bb4CA1ed054CD",
+        "0xB653C9a30c3b7eeC243f0FC07317CE95F985aF7E",
       "0x76501186fB44d508b9aeC50899037F33C6FF4A36":
-        "0xf7E531f59809134a010E43c3A83B3f1E4015E41d",
+        "0x410e21c8aA84f889d99dA54f01F0108c5de61D21",
     },
   },
   polygon: {
@@ -95,12 +95,12 @@ export const openfortContracts: Record<string, OpenfortContracts> = {
     polymerPaymasterVerifier: polymerPaymasterVerifier,
     hashiPaymasterVerifier: hashiPaymasterVerifier,
     invoiceManager: invoiceManager,
-    vaultManager: "0x3833b47F09262279576534d764C1B1974C5AaA40",
+    vaultManager: "0x0e2264b62a5b2B54B32E310351E1740dB8e6f1DE",
     vaults: {
       "0x8d59703E60051792396Da5C495215B25748d291f":
-        "0x7C1186b3831ce768E93047402EA06FD31b6f0e4B",
+        "0xB2145d6328658Cc87fCb3B925b4Fa19B8703875a",
       "0xEd01Aa1e63abdB90e5eA3a66c720483a318c4749":
-        "0x2010F3751bBFF6Bbd28C085481F32eAf6FF73B7e",
+        "0xE45BC02340CA4197cfC9578e5BBa3B80b4e4C2d4",
     },
   },
 };
