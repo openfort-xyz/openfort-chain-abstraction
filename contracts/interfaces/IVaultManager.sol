@@ -81,6 +81,17 @@ interface IVaultManager {
     function deposit(IERC20 token, IVault vault, uint256 amount, bool isYield) external returns (uint256);
 
     /**
+     * @notice Deposit the specified amount of tokens into the Vault for the specified account.
+     * @param account The account to deposit for.
+     * @param token The token to deposit.
+     * @param vault The Vault to deposit into.
+     * @param amount The amount of tokens to deposit.
+     * @param isYield A flag to indicate if the deposit is in yield mode.
+     * @return shares The amount of shares issued at the current exchange rate.
+     */
+    function depositFor(address account, IERC20 token, IVault vault, uint256 amount, bool isYield) external returns (uint256);
+
+    /**
      * @notice Withdraw the specified amount of tokens from the Vault.
      * @param vaults The Vaults to withdraw from.
      * @param shares The amount of shares to withdraw.
