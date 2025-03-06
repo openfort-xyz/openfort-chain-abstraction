@@ -1,6 +1,7 @@
 # Openfort Ecosystem Abstraction
 
 ## Overview
+
 Ecosystems are parent entities for groups of apps operating on different blockchains or standalone layer 2 networks. Openfort [**ecosystem wallets**](https://www.openfort.xyz/docs/guides/ecosystem) enable seamless interoperability between applications, allowing ecosystems to design their ideal, unified wallet experience. The next evolution is consolidating user liquidity across blockchains, providing a single, unified balance instantly spendable throughout the ecosystem. This vision will be powered by Openfort's chain abstraction implementation of [MagicSpend++](https://ethresear.ch/t/magicspend-spend-now-debit-later/19678/9) hosted in this repository.
 
 With this setup, ecosystems can deploy tailor-made 4337 chain abstraction infrastructure.
@@ -18,9 +19,11 @@ With Openfort, the ecosystem itself serves as the third-party LP. Leveraging the
 
 ![architecture](./assets/archi.jpg)
 
-## Zoom on userOp paymasterAndData
+## Zoom on the UserOperation paymasterAndData field
 
-In the [ERC-4337](https://eips.ethereum.org/EIPS/eip-4337) spec, leveraging the `paymasterAndData` field in the userOp is the only method to pass external information to the chain. We use this field to encode the repayment token paths - previously signed by the user as an [EIP-712](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-712.md) message — along with the sponsor tokens (i.e., the tokens being fronted) and the ecosystem's signature that authorizes the userOp.
+According to the Account Abstraction [ERC-4337](https://eips.ethereum.org/EIPS/eip-4337) specification, <em>when the paymasterAndData field in the `UserOperation` is not empty, the `EntryPoint` implements a different flow for that `UserOperation`</em> to call the Paymaster before and after the `UserOperation` execution. We use this field to encode the repayment token paths - previously signed by the user as an [EIP-712](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-712.md) message - along with the sponsor tokens (i.e., the tokens being fronted). Additionally, it includes the ecosystem's signature, which authorizes the `UserOperation` and is verified onchain by the CABPaymaster in the `validatePaymasterUserOp` hook.
+
+Note: the system supports native token, represented as `0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE`, following the [ERC-7528](https://eips.ethereum.org/EIPS/eip-7528) native asset convention.
 
 ![paymasterAndData](./assets/paymasterAndData.png)
 
@@ -61,18 +64,19 @@ Paymaster Owner can subscribe to webhook alerts when the Paymaster balance falls
 - Permissionless verification of remote event (`InvoiceCreated`) or storage proof (`invoices` mapping in the `InvoiceManager`)
 - Permissionless verification of invoice
 
-As part of chain abstraction activation, an account registers a Paymaster Verifier, which is subsequently called by the `InvoiceManager` before processing repayments.
+As part of chain abstraction activation, an account registers a Paymaster Verifier, which is subsequently called by the `InvoiceManager` to unlock repayments.
 
 
 ## Trust assumptions
 
-- The system relies on cross-L2 execution proofs currently provided by [Polymer](https://docs.polymerlabs.org/docs/build/examples/chain_abstraction/), eliminating the need for users to trust Openfort or the Ecosystem. To repay the ecosystem on the source chain(s) with user assets locked in vaults, Openfort must prove the execution of the userOp on the destination chain. No refund occurs on the source chain without a corresponding execution proof on the remote chain. The `InvoiceManager` tracks invoices onchain to prevent double-refund.
-- The system supports [Hashi](https://crosschain-alliance.gitbook.io/hashi/introduction/what-is-hashi) as a fallback proving mechanism if Polymer or Openfort ceases operations. Liquidity providers (LPs) first generate a proof for their fronted funds by running a [Hashi RPC API locally](https://github.com/gnosis/hashi/tree/main/packages/rpc#getting-started), which conveniently wraps [`eth_getProof`](
-https://github.com/ethereum/EIPs/issues/1186) for storage proofs or `eth_getTransactionReceipt` for events proof in the receipt trie. Then, they call the `fallbackRepay` function of the `InvoiceManager` with the proof and the invoice. This enables refunds solely using public data, without relying on any third party. The fallback proving strategy may evolve, but it will always remain permissionless, as it ultimately determines the system's overall security.
-- Openfort does not have custody of funds in the Ecosystem Paymaster, as the userOp is co-signed within a secure enclave that enforces predefined policies set by the ecosystem. At any time, the ecosystem can disable a signer, immediately preventing any new userOp from being sent.
+- The system relies on cross-L2 execution proofs currently provided by [Polymer](https://docs.polymerlabs.org/docs/build/examples/chain_abstraction/), eliminating the need for users to trust Openfort or the Ecosystem. To repay the ecosystem on the source chain(s) with user assets locked in vaults, Openfort must prove the execution of the `UserOperation` on the destination chain. No refund occurs on the source chain without a corresponding execution proof on the remote chain. The `InvoiceManager` tracks invoices onchain to prevent double-refund.
+- The system supports [Hashi](https://crosschain-alliance.gitbook.io/hashi/introduction/what-is-hashi) as a fallback proving mechanism if Polymer or Openfort ceases operations. Liquidity providers (LPs) first generate a proof for their fronted funds by running a [Hashi RPC API locally](https://github.com/gnosis/hashi/tree/main/packages/rpc#getting-started), which conveniently wraps [eth_getProof](
+https://github.com/ethereum/EIPs/issues/1186) for storage proofs or `eth_getTransactionReceipt` for events proof in the receipt trie.
+Then, they call the `fallbackRepay` function of the `InvoiceManager` with the proof and the invoice. This enables refunds solely using public data, without relying on any third party. The fallback proving strategy may evolve, but it will always remain permissionless, as it ultimately determines the system's overall security.
+- Openfort does not have custody of funds in the Ecosystem Paymaster, as the `UserOperation` is co-signed within a secure enclave that enforces predefined policies set by the ecosystem. At any time, the ecosystem can disable a signer, immediately preventing any `UserOperation` from being sent.
 
 
-A key strength of the system is its modular proof verification approach. With Ethereum interoperability advancing, more proof providers will emerge. The system’s design allows for seamless integration of new proof verification strategies, giving advanced users the flexibility to select the best fit for their use case. Polymer offers cheap and extremely fast proofs but requires trust in [sequencers](https://docs.polymerlabs.org/docs/learn/intro), whereas Hashi leverages multiple independent oracles to validate, verify, and relay block headers across different blockchains.
+A key strength of the system is its modular approach to proof verification. With Ethereum interoperability advancing, more proof providers will emerge. The system’s design allows for seamless integration of new proof verification strategies, giving advanced users the flexibility to select the best fit for their use case. Polymer offers cheap and extremely fast proofs but requires trust in [sequencers](https://docs.polymerlabs.org/docs/learn/intro), whereas Hashi leverages multiple independent oracles to validate, verify, and relay block headers across different blockchains.
 
 
 The trade-off is between trustlessness and efficiency. Hashi prioritizes decentralization but incurs higher gas costs due to its thorough verification process, with block headers taking up to 24 hours to become available. This makes it a perfect fallback repayment methods but not a serious candidat for real world interop use cases. In contrast, Polymer is optimized for efficiency with near block time proof availability (2-3 seconds), making it the preferred choice for day-to-day operations. Over time, this trade-off may become more nuanced and users will be able to fine-tune the system according to their preferences.
